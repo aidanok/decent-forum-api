@@ -5,6 +5,7 @@ import { ForumTreeNode } from './forum-tree-node';
 import { PostTreeNode } from './post-tree-node';
 import { ForumPostTags } from '../schema';
 import Transaction from 'arweave/web/lib/transaction';
+import { TransactionExtra } from './transaction-extra';
 
 /**
  * A client side cache of forums/posts/votes
@@ -54,6 +55,9 @@ import Transaction from 'arweave/web/lib/transaction';
  * so it should be useable without another frontend framework easily enough.
  * 
  */
+
+
+export type TransactionContent = { tx: Transaction, extra: TransactionExtra } | null
 
 export class ForumCache {
   
@@ -236,19 +240,20 @@ export class ForumCache {
     }
   }
 
-  addPostsContent(content: Record<string, Transaction|null>) {
+  addPostsContent(content: Record<string, TransactionContent>) {
     let count = 0, problems = 0, total = 0;
     Object.keys(content).forEach(txId => {
       total++;
       const postNode = this.findPostNode(txId);
       if (postNode && !postNode.isContentFiled()) {
-        const tx = content[txId];
-        if (!tx) {
+        const txContent = content[txId];
+        if (!txContent) {
           // mark as problem.
           postNode.contentProblem = 'Failed to load (Unknown)';
           problems++;
         } else {
-          postNode.post.content = tx.get('data', { decode: true, string: true })
+          postNode.post.content = txContent.tx.get('data', { decode: true, string: true });
+          postNode.post.from = txContent.extra.ownerAddress;
           count++;
         }
       }

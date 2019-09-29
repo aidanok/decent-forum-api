@@ -3,16 +3,19 @@ import { and, or, equals } from '../lib/arql'
 import { getAppVersion } from '../lib/schema-version';
 import { arweave } from '..';
 import { batchQueryTags, DecodedTag, queryTags, batchQueryTx } from '../lib/permaweb';
-import { ForumCache } from '../cache/cache';
+import { ForumCache, TransactionContent } from '../cache/cache';
 import { ForumItemTags, ForumPostTags } from '../schema';
 import { upgradeData, tagsArrayToObject } from './utils';
 import Transaction from 'arweave/web/lib/transaction';
 import { stringToB64Url } from 'arweave/web/lib/utils';
+import { TransactionExtra } from '../cache/transaction-extra';
 
 
 export async function queryThread(txId: string, depth: number, cache: ForumCache) {
   
   const posts: Record<string, ForumPostTags> = {};
+  const postContents: Record<string, TransactionContent> = {};
+    
   
   // NOTE: we only have the txId, no tags, 
   // so we query for the tags of current, and the txIds 
@@ -44,12 +47,7 @@ export async function queryThread(txId: string, depth: number, cache: ForumCache
     ])
     
     resultsIntoPosts(posts, current, tagsArrays.map(upgradeData).map(tagsArrayToObject)); 
-    
-    // Convert content into map.
-    const postContents: Record<string, Transaction | null> = {};
-    current.forEach((txId, idx) => {
-      postContents[txId] = content[idx];
-    })
+    transactionsIntoContents(postContents, current, content);
     
     if (cache) {
       cache.addPosts(posts);
@@ -115,6 +113,25 @@ function resultsIntoPosts(posts: Record<string, ForumPostTags>, ids: string[], t
       posts[ids[x]] = itemTags;
     }
   }
+}
+
+async function transactionsIntoContents(contents: Record<string, TransactionContent>, ids: string[], content: (Transaction|null)[] ) {
+  const extras = await Promise.all(
+    content.map(async x => { 
+      if (x) {
+        return { ownerAddress: await arweave.wallets.ownerToAddress(x.owner) }
+      }
+      return null;
+    })
+  );
+  
+  ids.forEach((txId, idx) => {
+    if (content[idx]) {
+      contents[txId] = { tx: content[idx]!, extra: extras[idx]! };
+    } else {
+      contents[txId] = null;
+    }
+  });
 }
 
 

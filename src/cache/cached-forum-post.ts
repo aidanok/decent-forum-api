@@ -1,7 +1,6 @@
 import { ForumPostTags } from '../schema'
 import { dateTagsToDate } from '../schema/date-tags'
 
-
 export class CachedForumPost {
   
   /**
@@ -17,7 +16,8 @@ export class CachedForumPost {
     public tags: ForumPostTags,
     public upVotes: number = Math.round(Math.random() * 1360),
     public downVotes: number = Math.round(Math.random() * 310),
-    public content: string | null = null
+    public content: string | null = null,
+    public from: string | null = null
   ) {
     this.date = dateTagsToDate(tags)
   }
