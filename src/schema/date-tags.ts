@@ -8,7 +8,8 @@ import { getWeekNumber, getISOTimezoneOffset } from '../lib/time-utils';
  *  - Dont use them for any kind of ordering or sorting, only for querying.
  * 
  * They MUST use UTC time. 
- * We record the clients Timezone. 
+ * 
+ * We record the clients Timezone, just for informational purposes.
  * We omit seconds and milliseconds. 
  * We can pass these back into Date.parse() 
  * 
@@ -58,15 +59,14 @@ export function generateDateTags(date: Date): DateTags {
  * @param tags 
  */
 export function dateTagsToDate(tags: DateTags): Date {
-  const isoString = `${tags.YYYY}-${pad(parseInt(tags.MM)+1)}-${pad(tags.DD)}T${pad(tags.HH)}:${pad(tags.mm)}:00${tags.TZ}`;
-  console.log(isoString);
-  return new Date(
-    Date.parse(isoString)
-  );
+  const d = new Date(0);
+  d.setUTCDate(parseInt(tags.DD));
+  d.setUTCMonth(parseInt(tags.MM));
+  d.setUTCFullYear(parseInt(tags.YYYY));
+  d.setUTCHours(parseInt(tags.HH));
+  d.setUTCMinutes(parseInt(tags.mm));
+  return d; 
 }
 
-function pad(s: string | number) {
-  return `0${s}`.slice(-2)
-}
 
 
