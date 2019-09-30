@@ -21,15 +21,16 @@ export interface PostTreeNodeCreateOptions {
   isEdit?: boolean, 
   isPendingTx?: boolean 
 }
+
 export class PostTreeNode {
   
   post: CachedForumPost;
   replies: Record<string, PostTreeNode>;
   isEdit: boolean;
-  parent: PostTreeNode | null = null;
-  edits: PostTreeNode[] | null = null;
-  contentProblem: string | null = null;
+  edits: PostTreeNode[] = [];
   isPendingTx: boolean;
+  parent: PostTreeNode | null = null;
+  contentProblem: string | null = null;
   
   constructor(post: CachedForumPost, opts: PostTreeNodeCreateOptions = {}) {
     this.post = post;
@@ -41,13 +42,12 @@ export class PostTreeNode {
 
   /**
    * Check if this post is the root of a thread.
-   * Returns true if this the root post, or an edit.
-   * 
-   * *does* not check if its the latest edit.
+   * Returns true if this the root post, or an edit 
+   * of the root post.
    * 
    */
   isRootPost(): boolean {
-    return !!this.parent || (this.isEdit && !!this.parent!.parent)
+    return !this.parent || (this.isEdit && !this.parent.parent)
   }
 
   /**
