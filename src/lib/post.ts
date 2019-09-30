@@ -1,7 +1,7 @@
 import { ForumPostTags } from '../schema/';
 import { VoteTags } from '../schema/vote-tags';
 import { arweave } from '..';
-import { PendingTxTracker } from './pending-tx-tracker';
+import { PendingTxTracker } from '../cache/pending-tx-tracker';
 import { normalizeForumPathSegments, encodeForumPath } from './forum-paths';
 import { PathTags } from '../schema/path-tags';
 import { getAppVersion } from './schema-version';
@@ -65,7 +65,7 @@ export async function postPost(wallet: any, postData: string | Buffer, tags: For
   const resp = await arweave.transactions.post(tx);
   
   if (resp.status == 200) {
-    txTracker && txTracker.pending.push(tx);
+    txTracker && txTracker.addPendingPostTx(tx, tags);
     console.log(`Post submitted as tx: ${tx.id}`);
     return tx.id;
   } else {

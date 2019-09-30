@@ -7,7 +7,7 @@ import { ForumTreeNode } from "./cache/forum-tree-node";
 import { CachedForumVote } from "./cache/cached-forum-vote";
 import { CachedForumPost } from "./cache/cached-forum-post";
 import { decodeForumPath, encodeForumPath } from './lib/forum-paths';
-import { PendingTxTracker } from './lib/pending-tx-tracker';
+import { PendingTxTracker } from './cache/pending-tx-tracker';
 import { PostTreeNode } from './cache/post-tree-node';
 
 // For quick test debugging

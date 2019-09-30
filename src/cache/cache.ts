@@ -13,9 +13,11 @@ import { TransactionExtra } from './transaction-extra';
  * This is lazily populated with the data the user browses to. 
  * So if they link directly into a subforum like Foo > Bar -> Whiz 
  * A request will be sent to retrieve only that data and place it 
- * in the cache. 
+ * in the cache. Similarly if they link directly to a thread on opening
+ * the app, only that thread will be put into the cache.
  * 
- * This class *should not have any async methods of any type*
+ * 
+ * This class **should not have any async methods of any type**
  * All methods should complete synchronously.  
  * 
  * Other query methods retrieve data asynchronously and fill/update the cache.
@@ -36,7 +38,7 @@ import { TransactionExtra } from './transaction-extra';
  * 2) Do not set array values directly by index: 
  * 
  *    NO: myArray[3] = 'x' 
- *    YES: some other way (splice, push, shift, etc work fine)
+ *    YES: any other way (splice, push, shift, etc work fine)
  * 
  * 4) Use 'null' to signify 'no value' or optional values. 
  * 
@@ -44,7 +46,8 @@ import { TransactionExtra } from './transaction-extra';
  * 
  * This doesn't matter for local variables inside methods, etc,
  * only for the publicly properties and the object graph they expose
- * for the views.
+ * for the views. (Currently this is only the 'forums' property and 
+ * its descendants)
  * 
  * It's mostly taken care of in the *Node sibling classes
  * 
@@ -61,10 +64,6 @@ export type TransactionContent = { tx: Transaction, extra: TransactionExtra } | 
 
 export class ForumCache {
   
-  /**
-   * All votes
-   */
-  public votes: CachedForumVote[] = []
   
   /**
    * Forum tree. The root node has an empty segment and 
@@ -76,11 +75,18 @@ export class ForumCache {
 
   /**
    * Flat map of all PostTreeNodes for easier searching/querying. 
-   * Should probably be a Record<string, PostTreeNode> for 
-   * quicker searching. The Nodes referenced here are same objects
-   * as stored in the ForumTree.
+   * TODO: Should be a Record<string, PostTreeNode> or a Map for 
+   * faster searching. 
+   * 
+   * The Nodes referenced here are same objects as stored in the ForumTree.
    */
-  public posts: PostTreeNode[] = []
+  private posts: PostTreeNode[] = []
+
+  /**
+   * All votes
+   */
+  private votes: CachedForumVote[] = []
+  
 
   /**
    * Searches for a ForumTreeNode for a given path, 
@@ -89,7 +95,7 @@ export class ForumCache {
    * 
    * @param segments an array of path segments returned by decodeForumPath()
    */
-  findForumNode(segments: string[]): ForumTreeNode | null {
+  public findForumNode(segments: string[]): ForumTreeNode | null {
     
     // Using this method to find the root node is probably a mistake, 
     // so throw an Error.
@@ -113,16 +119,17 @@ export class ForumCache {
    * 
    * @param txId 
    */
-  findPostNode(txId: string): PostTreeNode | undefined {
+  public findPostNode(txId: string): PostTreeNode | undefined {
     return this.posts.find(x => x.post.id === txId);
   }
 
   /**
-   * Add a map of posts. 
+   * Add a map of post metadata.
    * 
    * This will add replies/edits into the tree in the correct place. 
+   * The content will be added in subsequent step with addPostsContent.
    * 
-   * It may result in orphans 
+   * It may result in orphans
    * 
    * Orphans are edits or replies that do not have their referenced 
    * post in the cache OR in the map passed in. They are returned to 
@@ -132,13 +139,17 @@ export class ForumCache {
    * need to declared inside the function, to close over the posts
    * and orphans objects while recursing. 
    * 
-   * The naming of 'isEditFor / isReplyTo' is unclear..
+   * TODO: The naming of 'isEditFor / isReplyTo' is unclear and they should
+   * be top level instance methods.
    * 
+   * TODO: Ensure malformed/corrupt data is try catched and discarded and doesnt
+   * stop processing.
    * 
+   * TODO: Ensure validate against schema (perhaps not here though.)
    * 
    * @param posts 
    */
-  addPosts(posts: Record<string, ForumPostTags>) {
+  public addPostsMetadata(posts: Record<string, ForumPostTags>): Record<string, ForumPostTags> {
 
     const orphans: Record<string, ForumPostTags> = {}
 
@@ -147,7 +158,7 @@ export class ForumCache {
       node.post.id === id 
     ;
     
-    // Replies can reference the id of ANY edit. 
+    // Replies can reference the id of any edit. 
     const isReplyTo = (node: PostTreeNode, id: string) =>
       node.post.id === id || !!(node.edits && node.edits.find(e => e.post.id === id))
     ;
@@ -156,7 +167,7 @@ export class ForumCache {
       this.posts.find(x => x.post.id === id)
     ;
 
-    // try* functions, set of mutually recursive functions that will either 
+    // try* functions: set of mutually recursive functions that will either 
     // add the post in the correct place, or place it in the orphans list.
 
     
@@ -224,7 +235,7 @@ export class ForumCache {
         orphans[id] = tags;
         return; 
       }
-            
+      
       return this.addTopLevelPost(id, tags)
       
     }
@@ -235,17 +246,31 @@ export class ForumCache {
 
     console.info(`Added ${Object.keys(posts).length}, ${Object.keys(orphans).length} orphans, cache posts: ${this.posts.length}`)  
     if (Object.keys(orphans).length > 0) {
-      console.log('orphans', orphans);
-      
+      console.log('orphans', orphans); 
     }
+    
+    return orphans;
   }
 
-  addPostsContent(content: Record<string, TransactionContent>) {
+  /**
+   * Update the PostTreeNode with the content of the post. 
+   * The Post & Tags MUST have been added previously using addPostsMetadata.
+   * 
+   * Currently this 'content' also includes some things we would
+   * consider metadata, ('from'/'ownerAddress' & isTxPending ) But it should really just be the
+   * tx data.
+   * 
+   * This method can be used to add a pending tx to the cache, or to confirm that 
+   * a tx has been minded. Possibly should just use a dedicated method instead.
+   * 
+   * @param content 
+   */
+  public addPostsContent(content: Record<string, TransactionContent>) {
     let count = 0, problems = 0, total = 0;
     Object.keys(content).forEach(txId => {
       total++;
       const postNode = this.findPostNode(txId);
-      if (postNode && !postNode.isContentFiled()) {
+      if (postNode && !postNode.isContentFiled() && !postNode.isPendingTx) {
         const txContent = content[txId];
         if (!txContent) {
           // mark as problem.
@@ -254,11 +279,25 @@ export class ForumCache {
         } else {
           postNode.post.content = txContent.tx.get('data', { decode: true, string: true });
           postNode.post.from = txContent.extra.ownerAddress;
+          postNode.isPendingTx = txContent.extra.isPendingTx;
           count++;
         }
       }
     })
     console.log(`[Cache] Added ${count} post's content, with ${problems} missing. (${total})`);
+  }
+
+  public markPendingTxAsFailed(id: string) {
+    // remove post, take it out of the tree.
+
+    // pending txs that fail could present a problem 
+    // if a subsequent Tx references them and that gets 
+    // mined but the original failed. This needs to be 
+    // taken care of elsewhere (dont allow actions that do this)
+    // Given that: we should remove all descendents aswell, as
+    // they are invalid.
+
+    // TODO: XXX implement this.
   }
 
   private addTopLevelPost(id: string, tags: ForumPostTags): PostTreeNode | undefined {

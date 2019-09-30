@@ -1,16 +1,14 @@
 import Transaction from "arweave/web/lib/transaction";
 
 /**
- * Since the cache doesn't do any async work, we
- * ask the client to add some extra things to the 
- * transaction before giving it to the cache. 
+ * Some extra informaton about the transaction the cache needs.
  * 
- * We ask it to resolve owner to an address, and 
- * any other async work that is needed.
+ * This is includes anything that needs to be calculated async, 
+ * such as the owner -> address, and anything only the user of 
+ * the cache knows, such as whether the TX is pending or mined.
  * 
  */
-
-
 export interface TransactionExtra {
   ownerAddress: string
+  isPendingTx: boolean
 }

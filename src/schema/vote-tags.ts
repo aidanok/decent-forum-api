@@ -2,8 +2,8 @@
 
 export interface VoteTags {
   /**
-   * The TXID that this vote is for. 
-   *  (TBD should be for the first revision always or ? )
+   * The TXID that this vote is for.
+   * This can be the id of the original or any edit of the post.
    */
   voteFor: string
   voteType: '+' | '-' 

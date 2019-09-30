@@ -1,2 +1,2 @@
 
-export type PostFormat = 'Plaintext'
+export type PostFormat = 'Plaintext' | 'ForeignTx'

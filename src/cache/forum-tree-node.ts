@@ -19,7 +19,6 @@ export class ForumTreeNode {
     return this.segments.length === 0; // or parent = undefined
   }
 
-  
   /**
    * Gets or adds a child forum node.
    * If child node already exists, will just return it,

@@ -5,18 +5,22 @@ import { CachedForumPost } from './cached-forum-post';
  * 
  * A post tree, is how we store a thread of posts/replies/edits
  * 
- * Edits MUST reference the initial post. They CANNOT reference an existing
+ * Edits MUST reference the initial post. They MUST NOT reference an existing
  * edit. 
  * 
- * (This is simply because there is no advantage in edits referencing other edits, 
- *  and it confuses the ordering. Instead we store all edits of a post as a flat array, 
- *  ordered by the client set time ) 
+ * ( There is not much advantage in edits referencing other edits, 
+ *   and it confuses the ordering/is non-deterministic. Instead we store all edits of a 
+ *   post as a flat array, ordered by the client set time ) 
  * 
- * Replies (and votes) can reference the ID of any edit.
- * and should probably SHOULD reference the ID of the that the 
- * client actually saw.
+ * Replies (and votes) SHOULD reference the ID of the that the client actually saw.
  * 
  */
+
+export interface PostTreeNodeCreateOptions {
+  parent?: PostTreeNode, 
+  isEdit?: boolean, 
+  isPendingTx?: boolean 
+}
 export class PostTreeNode {
   
   post: CachedForumPost;
@@ -25,12 +29,14 @@ export class PostTreeNode {
   parent: PostTreeNode | null = null;
   edits: PostTreeNode[] | null = null;
   contentProblem: string | null = null;
+  isPendingTx: boolean;
   
-  constructor(post: CachedForumPost, parent?: PostTreeNode, isEdit?: boolean) {
+  constructor(post: CachedForumPost, opts: PostTreeNodeCreateOptions = {}) {
     this.post = post;
-    this.parent = parent || null;
+    this.parent = opts.parent || null;
     this.replies = {};
-    this.isEdit = !!isEdit;
+    this.isEdit = !!opts.isEdit;
+    this.isPendingTx = !!opts.isPendingTx;
   }
 
   /**
@@ -57,7 +63,7 @@ export class PostTreeNode {
    * @param post 
    */
   addReply(post: CachedForumPost): PostTreeNode {
-    const newNode = new PostTreeNode(post, this);
+    const newNode = new PostTreeNode(post, { parent: this });
     this.replies = Object.assign({}, this.replies, { [post.id]: newNode });
     return newNode;
   }
@@ -74,7 +80,7 @@ export class PostTreeNode {
     if (!this.edits) {
       this.edits = [];
     }
-    const newNode = new PostTreeNode(post, this);
+    const newNode = new PostTreeNode(post, { parent: this });
     this.edits.push(newNode);
     return newNode;
   }

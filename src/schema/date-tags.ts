@@ -3,7 +3,7 @@ import { getWeekNumber, getISOTimezoneOffset } from '../lib/time-utils';
 /**
  * DateTags allow us to query temporaly 
  * However they can't be trusted. (they are set by client)
- * Either: 
+ * Either/And: 
  *  - Check against block time and discard any TX thats outside a window. (allowing for broken client clocks)
  *  - Dont use them for any kind of ordering or sorting, only for querying.
  * 
@@ -58,8 +58,10 @@ export function generateDateTags(date: Date): DateTags {
  * @param tags 
  */
 export function dateTagsToDate(tags: DateTags): Date {
+  const isoString = `${tags.YYYY}-${pad(parseInt(tags.MM)+1)}-${pad(tags.DD)}T${pad(tags.HH)}:${pad(tags.mm)}:00${tags.TZ}`;
+  console.log(isoString);
   return new Date(
-    Date.parse(`${tags.YYYY}-${pad(parseInt(tags.MM)+1)}-${pad(tags.DD)}T${tags.HH}:${tags.mm}:00${tags.TZ}`)
+    Date.parse(isoString)
   );
 }
 

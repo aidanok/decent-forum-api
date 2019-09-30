@@ -48,4 +48,24 @@ export interface PostTags {
   editOf?: string
 }
 
+export interface PostTagsPlaintext {
+  
+  format: 'Plaintext'
+  
+  /**
+   * The description, title or caption of this post.
+   */
+  description?: string
+
+  /**
+   * (Optional) TX of the post this is replying to. Can be any edit of the post.
+   */
+  replyTo?: string
+
+  /**
+   * (Optional) TX of the post this is an edit of. Must be from the same wallet.
+   */
+  editOf?: string
+}
+
 

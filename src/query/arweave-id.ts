@@ -1,4 +1,4 @@
-import { and, equals } from '../lib/arql';
+import { and, equals } from './arql';
 import { arweave } from '../lib/permaweb';
 
 

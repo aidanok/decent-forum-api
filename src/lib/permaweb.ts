@@ -66,20 +66,23 @@ export async function batchQueryTags(txIds: string[]): Promise<DecodedTag[][]>  
 }
 
 export async function queryTags(txId: string, retries: number): Promise<DecodedTag[]> {
-  let responseArray = null as null | any[];
+  let response = null as null | any[];
   let tryNumber = 1; 
   while (retries--) {
     try {
       const resp = await arweave.api.get(`/tx/${txId}/tags`);
-      responseArray = resp.data; 
+      response = resp.data; 
     } catch (e) {
       console.error(e);
       console.log(`Error during batch get, try number: ${tryNumber}`);
       // backoff
       await new Promise(res => setTimeout(res, 150*tryNumber*tryNumber))
     }
-    if (responseArray) {
-      return responseArray.map(row => decodeTag(row));
+    if (Array.isArray(response)) {
+      return response.map(row => decodeTag(row));
+    } else {
+      console.error(`Received non-array in queryTags:`, response);
+      throw new Error(`Received non-array in queryTags: ${response}`);
     }
   }
   throw new Error('Retries exhausted during batch get, giving up');

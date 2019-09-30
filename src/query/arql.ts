@@ -26,12 +26,14 @@ export interface ArqlEquals {
 
 export type ArqlOp = (ArqlAnd | ArqlOr | ArqlEquals)
 
-
 export function equals(expr1: string, expr2: string): ArqlEquals {
   return { op: 'equals', expr1, expr2 }
 }
 
 export function or(...exprs: ArqlOp[]): ArqlOp {
+  if (exprs.length == 0) {
+    throw new Error('0 arguments pass to or()')
+  }
   if (exprs.length == 1) {
     return exprs[0]
   }
@@ -44,6 +46,9 @@ export function or(...exprs: ArqlOp[]): ArqlOp {
 }
 
 export function and(...exprs: ArqlOp[]): ArqlOp {
+  if (exprs.length == 0) {
+    throw new Error('0 arguments pass to and()')
+  }
   if (exprs.length == 1) {
     return exprs[0]
   }
