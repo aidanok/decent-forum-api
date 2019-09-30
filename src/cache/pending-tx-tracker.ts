@@ -1,7 +1,7 @@
 import Transaction from 'arweave/web/lib/transaction';
 import { ForumCache, arweave } from '..';
 import { ForumPostTags } from '../schema';
-import { TransactionExtra } from './transaction-extra';import { BlockWatcher } from '../block-watcher/block-watcher';
+import { TransactionExtra } from './transaction-extra';
 import { AxiosResponse } from 'axios';
 
 // Poll some random time between 60 and 120 seconds.
