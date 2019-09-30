@@ -1,12 +1,13 @@
 
 import { and, or, equals } from './arql'
 import { getAppVersion } from '../lib/schema-version';
-import { arweave } from '..';
+import { arweave, PostTreeNode } from '..';
 import { batchQueryTags, DecodedTag, queryTags, batchQueryTx } from '../lib/permaweb';
 import { ForumCache, TransactionContent } from '../cache/cache';
 import { ForumItemTags, ForumPostTags } from '../schema';
 import { upgradeData, tagsArrayToObject } from './utils';
 import Transaction from 'arweave/web/lib/transaction';
+import { encodeForumPath } from '../lib/forum-paths';
 
 
 // Its *much much* faster to do this with ArQL and concurrent requests, 
@@ -17,7 +18,7 @@ import Transaction from 'arweave/web/lib/transaction';
 // want the entire TX data immediately. Also this method is a more direct mapping
 // of how a graphql implementation would work.
 
-export async function queryThread(txId: string, depth: number, cache: ForumCache) {
+export async function queryThread(txId: string, depth: number, cache: ForumCache): Promise<PostTreeNode> {
   
   const postMetadata: Record<string, ForumPostTags> = {};
   const postContents: Record<string, TransactionContent> = {};
@@ -26,10 +27,7 @@ export async function queryThread(txId: string, depth: number, cache: ForumCache
   // so we query for the tags & data of the current, 
   // and the txIds of the next level in each iteration.
 
-  // TODO: XXX Check cache for every txId we encounter, if we
-  // already have it in the cache, we dont need to query the tags for that txId.
-  // Same for content.
-
+  
   let current: string[] = [ txId ]
   let next: string[] = [];
   let tagsArrays: DecodedTag[][];
@@ -44,6 +42,15 @@ export async function queryThread(txId: string, depth: number, cache: ForumCache
         ...current.map(txId => equals('editOf', txId))
       )
     );
+
+    // Filter out posts we already have. We will
+    // still query for their replies/edits.
+    const curCount = current.length;
+    current = current.filter(id => { 
+      const found = cache.findPostNode(id);
+      return !found || !found.isContentFiled();
+    });
+    console.info(`[Query] Skipping content and metadata retrieval for ${curCount - current.length}`);
 
     [ tagsArrays, content, next ] = await Promise.all([
       await batchQueryTags(current),
@@ -67,21 +74,22 @@ export async function queryThread(txId: string, depth: number, cache: ForumCache
     cache.addPostsMetadata(postMetadata);
     cache.addPostsContent(postContents);
   }
-  return postMetadata;
+  return cache.findPostNode(txId)!;
 }
 
-export async function queryForumIntoCache(path: string[], cache: ForumCache) {
-  return queryAll(cache);
+export async function queryForumIntoCache(forum: string[], cache: ForumCache) {
+  return queryAll(forum, cache);
 }
 
-/**
- * This querys ALL app data & tags. :S 
- * 
- * @param cache 
- */
-export async function queryAll(cache: ForumCache) {
+// This will collect all votes and metatags of posts, but not the content of posts.
+
+export async function queryAll(forum: string[], cache: ForumCache) {
   
-  const APP_FILTER = equals('DFV', getAppVersion());
+  const APP_FILTER = forum.length ? 
+    and(equals('DFV', getAppVersion()), equals('path0', encodeForumPath(forum)))
+    :
+    equals('DFV', getAppVersion())
+  
   const results = await arweave.arql(APP_FILTER);
   
   console.info(`Got ${results.length} Tx Ids`);
