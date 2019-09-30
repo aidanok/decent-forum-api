@@ -3,6 +3,7 @@ import { ForumCache, arweave } from '..';
 import { ForumPostTags } from '../schema';
 import { TransactionExtra } from './transaction-extra';
 import { AxiosResponse } from 'axios';
+import { BlockWatcher, BlockWatcherSubscriber } from '../block-watcher/block-watcher';
 
 // Poll some random time between 60 and 120 seconds.
 
@@ -22,8 +23,8 @@ const MAX_ERRORS = 3;
  * It will expose some data to the view layer, so needs to follow the same 
  * rules regarding vue reactivity as the cache.
  * 
- * This class, unlike the cache, is by it's nature asynchronous, polling and updating
- * its own state and informing the cache.
+ * This class, unlike the cache, by it's nature is asynchronous, polling and updating
+ * its own state and then updating the cache.
  * 
  * Handles nodes occasionally returning 404 just after the TX is mined succesfully
  * but before its been propogated. 
@@ -31,8 +32,9 @@ const MAX_ERRORS = 3;
  * It would be nice to use BlockWatcher to do this, but it adds an edge case:
  * The client could be offline, and miss the block the TX was mined in. 
  * 
- * So we just poll for individual txs here for now.
+ * So we just poll for individual txs here for now. 
  * 
+ * TODO: Use BlockWatcher and only poll when we missed blocks 
  */
 
  type PendingTx = {
@@ -49,7 +51,8 @@ export class PendingTxTracker {
 
   pending: Record<string, PendingTx> = {};
 
-  constructor(private cache: ForumCache) {
+  constructor(private cache: ForumCache, private blockWatcher: BlockWatcher) {
+    console.log(`[TXTRACKER] hello`);
     this.loop();
   }
 
@@ -66,6 +69,7 @@ export class PendingTxTracker {
       tags,
       extra,
     }
+    console.log(`[PendingTxTracker] Started tracking TX: ${tx.id}`);
   }
 
   async loop() {
@@ -107,10 +111,12 @@ export class PendingTxTracker {
       this.pending[txId].countErrors++;
       // TODO: XXX actually mark the TX as failed and remove from cache.
     }
+    console.log(`[PendingTXTracker] TX ${txId} is still pending (${response && response.status})`)
   }
 
   confirmTx(txId: string) {
     const p = this.pending[txId];
+    console.log(`[PendingTXTracker] Pending TX: ${txId} CONFIRMED`);
     this.cache.addPostsContent({
       [txId]: {
         tx: p.tx,
@@ -118,6 +124,6 @@ export class PendingTxTracker {
       }
     })
     delete this.pending[txId];
-    console.info(`[TX Tracker] Pending TX: ${txId} CONFIRMED and cache updated.`);
+    console.info(`[PendingTXTracker] Pending TX: ${txId} CONFIRMED and cache updated.`);
   }
 }
