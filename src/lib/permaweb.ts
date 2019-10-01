@@ -38,6 +38,12 @@ export interface BatchContinuation<T> {
   results: T[][]
 }
 
+export function tagsArrayToObject(tags: DecodedTag[]): Record<string, string> {
+  var ret: Record<string, string> = {}
+  tags.forEach((x) => ret[x.name] = x.value);
+  return ret;
+}
+
 // export async function batchQueryTags(txIds: string[], continuations: true): Promise<BatchContinuation<DecodedTag>>;
 
 // export async function batchQueryTags(txIds: string[], continuations: false): Promise<DecodedTag[][]>;

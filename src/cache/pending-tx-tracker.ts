@@ -105,6 +105,7 @@ export class PendingTxTracker {
     // Handle response if we got one. 
     if (response && response.status == 200) {
       this.confirmTx(txId);
+      return;
     }
     if (response && response.status == 404) {
       // 404, probably propogation. 

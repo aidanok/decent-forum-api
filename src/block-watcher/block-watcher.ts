@@ -2,7 +2,6 @@ import { arweave } from '../lib/permaweb';
 import { NetworkInfoInterface } from 'arweave/web/network';
 
 
-export type BlockWatcherSubscriber = (x: any)=>void;
 
 // Poll some random time between 1 & 3 minutes.
 const MIN_POLL_TIME = 60*1000*1;
@@ -11,15 +10,30 @@ const MAX_POLL_TIME = 60*1000*3;
 const randomPollTime = () => 
   new Promise(res => setTimeout(res, Math.random() * (MAX_POLL_TIME - MIN_POLL_TIME) + MIN_POLL_TIME))
 
-// We don't want to hammer the node with requests when we 
-// need to sync/backfill, so we use a smaller delay for that.
-// Whatever the poll time parameters are in minutes,
-// we use the same but in seconds.
+// We don't want to completely hammer the node with requests when we 
+// need to sync/backfill, so we use a small delay for that.
 const randomSyncTime = () => 
-  new Promise(res => setTimeout(res, (Math.random() * (MAX_POLL_TIME - MIN_POLL_TIME) + MIN_POLL_TIME) / 60))
+  new Promise(res => setTimeout(res, (Math.random() * (MAX_POLL_TIME - MIN_POLL_TIME) + MIN_POLL_TIME) / 120))
 
 
-const BLOCKS_TO_SYNC = 2;
+const BLOCKS_TO_SYNC = 7;
+
+// Partial typing of the raw block format from the /blocks endpoint.
+interface RawBlock { 
+  txs: string[]
+  previous_block: string
+  height: number
+}
+
+export interface WatchedBlock {
+  hash: string
+  block: RawBlock
+}
+
+export interface BlockWatcherSubscriber { 
+  (blocks: WatchedBlock[], missed: boolean): void
+}
+
 
 /**
  * Watches for new blocks to inform subscribers.
@@ -28,24 +42,25 @@ const BLOCKS_TO_SYNC = 2;
  * 
  */ 
 
-interface RawBlock {
-  
-  txs: string[],
-  previous_block: string,
-}
+let instanceCount = 0;
 
 export class BlockWatcher {
 
   private idGen = 0;
   private subscribers: Record<number, BlockWatcherSubscriber> = {};
-  private blocks: { hash: string, block: RawBlock }[] = []
+  private blocks: WatchedBlock[] = [];
+
+  private instance = ++instanceCount; // debug helper
 
   constructor() {
     this.loop();
+    console.log('[BlockWatcher] started')
   }
 
   public subscribe(handler: BlockWatcherSubscriber): number {
-    if (Object.values(this.subscribers).findIndex(handler) === -1) {
+    var subs = Object.values(this.subscribers)
+    
+    if (Object.values(this.subscribers).findIndex(x => x == handler) === -1) {
       throw new Error('This handler is already subscribed');
     } else {
       this.subscribers[++this.idGen] = handler;
@@ -57,18 +72,18 @@ export class BlockWatcher {
     const idx: number = typeof sub === 'number' ? 
       sub 
       :
-      Object.values(this.subscribers).findIndex(sub)
+      Object.values(this.subscribers).findIndex(x => x === sub)
   
     delete this.subscribers[idx];  
   }
 
   private async loop() {
     try {
-      await this.sync();
     } catch (e) {
       console.error(e);
       console.error(`^^ [BlockWatcher] Unexpected error ^^`);
     }
+    await this.sync();
     await randomPollTime();
     this.loop();
   }
@@ -78,32 +93,56 @@ export class BlockWatcher {
     let hash: string | undefined = 
       await arweave.network.getInfo().then(x => x.current);
     
-    console.log(`[BlockWatcher] Checking if we have ${hash} as top`);
+    console.log(`[BlockWatcher - ${this.instance}] Checking if we have ${hash!.substr(0, 5)} as top`);
     
     let i = 0;
+    let synced = false; 
+    let missed = false; 
+
     while (hash && (i < BLOCKS_TO_SYNC)) {
       if (i > 0) {
         await randomSyncTime();
       }
       hash = await this.maybeUpdate(hash, i);
+      if (!hash) {
+        // Break here so i is the number of blocks synced.
+        break; 
+      }
       i++;
     }
+    
 
-    if (this.blocks.length > BLOCKS_TO_SYNC) {
-      // We did get some extra blocks ! 
-      // Check if we missed any. 
-      if (this.blocks[BLOCKS_TO_SYNC-1].block.previous_block !== this.blocks[BLOCKS_TO_SYNC].hash) {
-        console.log(this.blocks);
-        console.log(`[BlockWatcher] We missed some blocks!`)
-      }
-      // Trim the end of our list
-      this.blocks = this.blocks.slice(0, BLOCKS_TO_SYNC);
+    // If our list grew past 'full', and our last block doesnt link to the previous one, 
+    // we missed some blocks.
+
+    missed = 
+        (this.blocks.length > BLOCKS_TO_SYNC) 
+        &&  
+        this.blocks[BLOCKS_TO_SYNC-1].block.previous_block !== this.blocks[BLOCKS_TO_SYNC].hash;
+    
+    // Trim the end of our list
+    this.blocks = this.blocks.slice(0, BLOCKS_TO_SYNC);
+  
+    if (i > 0) {
+      console.log(`[BlockWatcher] Synced ${i} blocks. ${missed ? ' ! - Some blocks were missed - !' : ''}`);
+      this.blocks.forEach(x => {
+        console.log(`[BlockWatcher] ${x.hash.substr(0, 5)} (${x.block.height}) => ${x.block.previous_block.substr(0, 5)}`);
+      })
+      synced = true;
+      Object.values(this.subscribers).forEach(sub => {
+        // dont let subscriber exceptions stop us.
+        try {
+          sub(this.blocks, missed);
+        } catch (e) {
+          console.error(e);
+        }
+      });
     }
   }
 
   // Checks if the block at IDX in our list matches hash, if not 
-  // retrieve that block, insert int our list at IDX and return
-  // the previous_block hash. 
+  // retrieve that block, insert in our list at IDX and return
+  // the previous_block hash.
   // If that hash matches our list returned undefined, indicating we 
   // are properly synced from IDX onwards in our list. 
   private async maybeUpdate(hash: string, idx: number): Promise<string | undefined> {
@@ -113,7 +152,6 @@ export class BlockWatcher {
         throw Error('Invalid raw block data');
       }
       this.blocks.splice(idx, 0, { hash, block })
-      console.log(`[BlockWatcher] Added new block at ${idx}`, { hash, block });
       return block.previous_block;
     }
     return;

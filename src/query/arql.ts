@@ -1,6 +1,4 @@
 
-
-
 export interface ArqlAnd {
   op: 'and'
   expr1: ArqlOp,
@@ -54,8 +52,6 @@ export function and(...exprs: ArqlOp[]): ArqlOp & ArQlChainable {
   }
   return decorate(op);
 }
-
-
 
 interface ArQlChainable { 
   or: typeof or,

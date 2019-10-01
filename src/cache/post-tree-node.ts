@@ -1,4 +1,5 @@
 import { CachedForumPost } from './cached-forum-post';
+import { ForumTreeNode } from './forum-tree-node';
 
 /**
  * Node in a PostTree
@@ -24,6 +25,10 @@ export interface PostTreeNodeCreateOptions {
 
 export class PostTreeNode {
   
+  /** The Tx Id */
+  id: string 
+  forum: ForumTreeNode
+
   post: CachedForumPost;
   replies: Record<string, PostTreeNode>;
   isEdit: boolean;
@@ -32,7 +37,10 @@ export class PostTreeNode {
   parent: PostTreeNode | null = null;
   contentProblem: string | null = null;
   
-  constructor(post: CachedForumPost, opts: PostTreeNodeCreateOptions = {}) {
+  // TODO: store a reference to ForumTreeNode instead of path.
+  constructor(id: string, forum: ForumTreeNode, post: CachedForumPost, opts: PostTreeNodeCreateOptions = {}) {
+    this.id = id;
+    this.forum = forum
     this.post = post;
     this.parent = opts.parent || null;
     this.replies = {};
@@ -58,12 +66,55 @@ export class PostTreeNode {
   }
   
   /**
+   * Gets a specific edit of this post. 
+   * 0 will return the original post. 
+   * 
+   * @param edit 
+   */
+  public getEdit(edit: number): PostTreeNode {
+    if (edit) {
+      return this.edits[Math.min(edit, this.edits.length-1)];
+    }
+    return this;
+  }
+
+  /**
+   * Get the number of edits. We count the original post in this,
+   * so the index is compatible with getEdit();
+   */
+  public editCount(): number {
+    return this.edits.length;
+  }
+
+  /**
+   * Gets the latest edit.
+   */
+  public latestEdit(): PostTreeNode {
+    return this.getEdit(this.editCount());
+  }
+
+  /**
+   * Return the original post if this is an edit.
+   * Otherwise just returns itself.
+   */
+  public getOriginalNode(): PostTreeNode {
+    return this.isEdit ? this.parent! : this;
+  }
+
+  /**
+   * Gets the forum path.
+   */
+  public getForumPath(): string[] {
+    return this.forum.segments; 
+  }
+
+  /**
    * Add to the a replies and returns the new PostTreeNode. 
    * 
    * @param post 
    */
   addReply(post: CachedForumPost): PostTreeNode {
-    const newNode = new PostTreeNode(post, { parent: this });
+    const newNode = new PostTreeNode(post.id, this.forum, post, { parent: this });
     this.replies = Object.assign({}, this.replies, { [post.id]: newNode });
     return newNode;
   }
@@ -80,7 +131,7 @@ export class PostTreeNode {
     if (!this.edits) {
       this.edits = [];
     }
-    const newNode = new PostTreeNode(post, { parent: this });
+    const newNode = new PostTreeNode(post.id, this.forum, post, { parent: this });
     this.edits.push(newNode);
     return newNode;
   }

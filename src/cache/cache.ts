@@ -4,8 +4,7 @@ import { CachedForumVote } from './cached-forum-vote';
 import { ForumTreeNode } from './forum-tree-node';
 import { PostTreeNode } from './post-tree-node';
 import { ForumPostTags } from '../schema';
-import Transaction from 'arweave/web/lib/transaction';
-import { TransactionExtra } from './transaction-extra';
+import { TransactionContent } from './transaction-extra';
 
 /**
  * A client side cache of forums/posts/votes
@@ -20,11 +19,11 @@ import { TransactionExtra } from './transaction-extra';
  * This class **should not have any async methods of any type**
  * All methods should complete synchronously.  
  * 
- * Other query methods retrieve data asynchronously and fill/update the cache.
+ * Other systems & apis retrieve data asynchronously and 
+ * fill/update the cache.
  * 
  * This is just to make the cache easy to reason about, ie it makes a 
  * synchronous data structure. 
- * 
  * 
  * Important: This will be added to Vue components as part of their 
  * reactive data properties. This means we must follow some simple 
@@ -44,9 +43,9 @@ import { TransactionExtra } from './transaction-extra';
  * 
  * 3) No use of ES Set or Map 
  * 
- * This doesn't matter for local variables inside methods, etc,
- * only for the publicly properties and the object graph they expose
- * for the views. (Currently this is only the 'forums' property and 
+ * This doesn't matter for local variables inside methods, or 
+ * private properties, only for the public properties and the object graph 
+ * they expose for the views. (Currently this is only the 'forums' property and 
  * its descendants)
  * 
  * It's mostly taken care of in the *Node sibling classes
@@ -55,15 +54,10 @@ import { TransactionExtra } from './transaction-extra';
  * these limitations.
  * 
  * This class is not specific to Vue, it has no dependencies on it, 
- * so it should be useable without another frontend framework easily enough.
+ * so it should be useable without another frontend framework.
  * 
  */
-
-
-export type TransactionContent = { tx: Transaction, extra: TransactionExtra } | null
-
 export class ForumCache {
-  
   
   /**
    * Forum tree. The root node has an empty segment and 
@@ -119,8 +113,8 @@ export class ForumCache {
    * 
    * @param txId 
    */
-  public findPostNode(txId: string): PostTreeNode | undefined {
-    return this.posts.find(x => x.post.id === txId);
+  public findPostNode(txId: string): PostTreeNode | null {
+    return this.posts.find(x => x.post.id === txId) || null;
   }
 
   /**
@@ -160,11 +154,11 @@ export class ForumCache {
     
     // Replies can reference the id of any edit. 
     const isReplyTo = (node: PostTreeNode, id: string) =>
-      node.post.id === id || !!(node.edits && node.edits.find(e => e.post.id === id))
+      node.id === id || !!(node.edits && node.edits.find(e => e.id === id))
     ;
 
     const getFromCache = (id: string): PostTreeNode | undefined =>
-      this.posts.find(x => x.post.id === id)
+      this.posts.find(x => x.id === id)
     ;
 
     // try* functions: set of mutually recursive functions that will either 
@@ -187,7 +181,7 @@ export class ForumCache {
 
     const tryFindParentForReply = (parentId: string): PostTreeNode | undefined => {
       let parent = posts[parentId] && tryAdd(parentId);
-      if (parent) {
+      if (!parent) {
         parent = this.posts.find(node => isReplyTo(node, parentId));
       }
       if (!parent) {
@@ -199,14 +193,17 @@ export class ForumCache {
     }
     
     const tryAdd = (id: string): PostTreeNode | undefined | null => {
-
+      
       let existing = getFromCache(id)
       
       if (existing) {
         return existing;
       }
-      
+      console.log(`Trying to add ${id}`);
       const tags = posts[id];
+      if (!tags) {
+        throw new Error('No post tags provided!');
+      }
 
       // Recurse to ensure our parent post is added
       // before we are.
@@ -309,8 +306,8 @@ export class ForumCache {
       for (let i = 0; i < segments.length; i++) {
         forumNode = forumNode.getChildAlways(segments[i]);
       }
-      const newNode = new PostTreeNode(new CachedForumPost(id, tags));
-      forumNode.posts.push(newNode);
+      const newNode = new PostTreeNode(id, forumNode, new CachedForumPost(id, tags));
+      forumNode.posts[id] = newNode;
       this.posts.push(newNode);
       return newNode;
     } catch (e) {

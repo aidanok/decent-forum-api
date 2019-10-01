@@ -1,32 +1,32 @@
-import { CachedForumPost } from '..';
+import { PostTreeNode } from '..';
 
-/**
- * A quick and dirty sorting routine. 
- * 
- * Gives extra score to recent posts.
- * 
- * 
- * @param a 
- * @param b 
- */
-export function sortPostsStandard(a: CachedForumPost, b: CachedForumPost) {
-    
-  // Age in hours
-  const ageA = (Date.now() - a.date.getTime()) / 1000 / 60 / 60;
-  const ageB = (Date.now() - b.date.getTime()) / 1000 / 60 / 60;
-    
+// Hide posts that get a vote score worse than this.
+const HIDE_THESEHOLD = -3;
+
+// Parameters for scoring posts extra based on recency.
+const BONUS_VOTES_PER_RECENT_HOUR = 500;
+const MAX_RECENY = 6; 
+
+// TODO: this is a pretty poor first pass at giving more recent posts
+// higher ranking. Ideally we should be 
+// a) using some context about the overall amount of votes and activity level in the thread/forum. 
+// b) using a function with falloff instead of a linear one for the extra score.
+
+export function scoreByVotesAndTime(upVotes: number, downVotes: number, time: Date) {
   // MAX extra votes you get for receny is votePerHour*maxReceny.
-  // So a post just made, gets an extra ~50 votes with values of 5 and 10.
-  const votePerHour = 5;
-  const maxRecency = 10; 
-  
-  const votesA = (a.upVotes - a.downVotes) + Math.max(0, maxRecency - ageA) * votePerHour;
-  const votesB = (a.upVotes - b.downVotes) + Math.max(0, maxRecency - ageB) * votePerHour;
-  
-  return votesA - votesB;
+  // With these parameters, a post just made, gets an extra 50 up votes included in the
+  // score.
+  const age = (Date.now() - time.getTime()) / 1000 / 60 / 60;
+  const bonusVotes = (Math.max(0, MAX_RECENY - age) * BONUS_VOTES_PER_RECENT_HOUR);
+  console.log(`AGE: ${age}, BONUS: ${bonusVotes}`)
+  return upVotes - downVotes + bonusVotes;
 }
 
-const HIDE_THESEHOLD = -2;
+export function sortPostNodes(a: PostTreeNode, b: PostTreeNode) {
+  var scoreA = scoreByVotesAndTime(a.post.upVotes, a.post.downVotes, a.post.date);
+  var scoreB = scoreByVotesAndTime(b.post.upVotes, b.post.downVotes, b.post.date);
+  return scoreB - scoreA;
+}
 
 /**
  * Filter to check if a post should be hidden. 
@@ -34,8 +34,8 @@ const HIDE_THESEHOLD = -2;
  * 
  * @param a 
  */
-export function isPostHidden(a: CachedForumPost) {
-  return (a.upVotes - a.downVotes) < HIDE_THESEHOLD; 
+export function isPostHidden(upVotes: number, downVotes: number) {
+  return (upVotes - downVotes) < HIDE_THESEHOLD; 
 }
  
 

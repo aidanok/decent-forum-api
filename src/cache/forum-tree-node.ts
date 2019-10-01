@@ -4,13 +4,13 @@ import { PostTreeNode } from "./post-tree-node";
  * Node in a ForumTree
  */
 export class ForumTreeNode {
-
-  posts: PostTreeNode[] = [];
+  posts: Record<string, PostTreeNode> = {};
   children: Record<string, ForumTreeNode> = {};
   segments: string[];
   parent: ForumTreeNode | null;
   
   constructor(segments: string[], parent?: ForumTreeNode) {
+   
     this.segments = segments;
     this.parent = parent || null;
   }

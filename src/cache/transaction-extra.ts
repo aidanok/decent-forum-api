@@ -12,3 +12,8 @@ export interface TransactionExtra {
   ownerAddress: string
   isPendingTx: boolean
 }
+
+/**
+ *  A helper object that combines the Transaction with the extra info.
+ */
+export type TransactionContent = { tx: Transaction, extra: TransactionExtra } | null

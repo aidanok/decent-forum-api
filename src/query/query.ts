@@ -1,9 +1,9 @@
 
 import { and, or, equals } from './arql'
 import { getAppVersion } from '../lib/schema-version';
-import { arweave, PostTreeNode } from '..';
+import { arweave, PostTreeNode, ForumCache } from '..';
 import { batchQueryTags, DecodedTag, queryTags, batchQueryTx } from '../lib/permaweb';
-import { ForumCache, TransactionContent } from '../cache/cache';
+import { TransactionContent } from '../cache/transaction-extra';
 import { ForumItemTags, ForumPostTags } from '../schema';
 import { upgradeData, tagsArrayToObject } from './utils';
 import Transaction from 'arweave/web/lib/transaction';
@@ -83,7 +83,7 @@ export async function queryForumIntoCache(forum: string[], cache: ForumCache) {
 
 // This will collect all votes and metatags of posts, but not the content of posts.
 
-export async function queryAll(forum: string[], cache: ForumCache) {
+export async function queryAll(forum: string[], cache: ForumCache, retrieveContent = false) {
   
   const APP_FILTER = forum.length ? 
     and(equals('DFV', getAppVersion()), equals('path0', encodeForumPath(forum)))
@@ -95,15 +95,24 @@ export async function queryAll(forum: string[], cache: ForumCache) {
   console.info(`Got ${results.length} Tx Ids`);
   
   const posts: Record<string, ForumPostTags> = {};
+  const postsContent: Record<string, TransactionContent> = {};
 
-  const tagsArrays = await batchQueryTags(results);
+  // TODO, we dont need to query tags and Tx seperately!! Tx has the tags! 
+  const [tagsArrays, content ] = await Promise.all([
+    await batchQueryTags(results),
+    retrieveContent ? await batchQueryTx(results) : [],
+  ]);
+
   const tags = tagsArrays.map(upgradeData).map(tagsArrayToObject);
 
   collectPostMetadata(posts, results, tags);
+  retrieveContent && await collectPostContents(postsContent, results, content);
 
-  // TODO, get votes full Tx data before adding. 
-  
+  // TODO, get votes & full Tx data before adding. 
+  console.log('adding to cache');  
   cache.addPostsMetadata(posts);
+  retrieveContent && cache.addPostsContent(postsContent);
+  console.log('added to cache');
   
   console.log('cache ', cache.forums.children.length);
 }
