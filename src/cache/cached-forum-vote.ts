@@ -1,6 +1,6 @@
 import { ForumVoteTags } from '../schema';
 
 export type CachedForumVote = {
-  id: string;
-  tags: ForumVoteTags;
+  id: string
+  tags: ForumVoteTags
 };

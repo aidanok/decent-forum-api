@@ -17,7 +17,7 @@ export interface PathTags {
   
   /** 
    * The full path of the forum 
-   * Categories are seperated by a '/' characther. 
+   * Categories are seperated by a '_' characther. 
   `*/
   path0: string 
   
@@ -37,17 +37,17 @@ export interface PathTags {
   /**
    * The first segment of the forum path
    */
-  pathSegment0: string 
+  segment0: string 
   
   /**
    * The second segment of the forum path
    */
-  pathSegment1?: string
+  segment1?: string
   
   /**
    * The third segment of the forum path
    */ 
-  pathSegment2?: string
+  segment2?: string
   
 
 }

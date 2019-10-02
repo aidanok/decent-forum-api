@@ -38,34 +38,56 @@ export interface PostTags {
   description?: string
 
   /**
-   * (Optional) TX of the post this is replying to. Can be any edit of the post.
+   * (Optional) reply to chain of the post this is replying to. 
+   * Can point to any edit of the post.
+   * 
+   * Stored in a de-normalized format. Posts must copy ALL of the
+   * replyToN of the post they are replying to, and add their own
+   * at the end. 
+   *  
    */
-  replyTo?: string
+  replyTo: string // deprecated.
+  replyTo0?: string
+  replyTo1?: string
+  // ... etc ... //
+
 
   /**
    * (Optional) TX of the post this is an edit of. Must be from the same wallet.
-   */
-  editOf?: string
-}
-
-export interface PostTagsPlaintext {
-  
-  format: 'Plaintext'
-  
-  /**
-   * The description, title or caption of this post.
-   */
-  description?: string
-
-  /**
-   * (Optional) TX of the post this is replying to. Can be any edit of the post.
-   */
-  replyTo?: string
-
-  /**
-   * (Optional) TX of the post this is an edit of. Must be from the same wallet.
+   * 
+   * MUST Have the same replyTo chain as the post it is editing.
    */
   editOf?: string
 }
 
 
+export function decodeReplyToChain(tags: PostTags) {
+  const numbers = Object.keys(tags)
+    .filter(tname => tname.startsWith('replyTo'))
+    .map(tname => new Number(tname.substr(7)))
+    .sort();
+
+  const sorted: string[] = numbers.map(no => (<any>tags)[`replyTo${no}`])
+  return sorted; 
+}
+
+export function encodeReplyToChain(tags: PostTags, chain: string[]) {
+  for (var i = 0; i < chain.length; i++) {
+    (tags as any)[`replyTo${i}`] = chain[i];
+  }
+}
+
+
+// TODO: use + comapre
+export function verifyReplyToChain(tags: PostTags): boolean {
+  const numbers = Object.keys(tags)
+    .filter(tname => tname.startsWith('replyTo'))
+    .map(tname => new Number(tname.substr(7)))
+    .sort();
+  for (var i = 0; i < numbers.length; i++) {
+    if (i !== numbers[i] || typeof numbers[i] !== 'string' || (tags as any)[`replyTo${i}`].length < 4) {
+      return false;
+    }
+  }
+  return true;
+}

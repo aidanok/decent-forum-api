@@ -1,12 +1,43 @@
 import { ForumPostTags } from '../schema/';
 import { VoteTags } from '../schema/vote-tags';
-import { arweave } from '..';
+import { arweave, PostTreeNode } from '..';
 import { PendingTxTracker } from '../cache/pending-tx-tracker';
 import { normalizeForumPathSegments, encodeForumPath } from './forum-paths';
 import { PathTags } from '../schema/path-tags';
 import { getAppVersion } from './schema-version';
-import { PostTags } from '../schema/post-tags';
+import { PostTags, decodeReplyToChain, encodeReplyToChain } from '../schema/post-tags';
 import { generateDateTags } from '../schema/date-tags';
+
+export function buildPostTagsForReply(replyingTo: PostTreeNode, options?: Partial<PostTags>, fakeDate?: Date) { 
+  
+  const postTags: PostTags = {} as any;
+  
+  // deprecated
+  postTags.replyTo = replyingTo.post.tags.replyTo;
+  
+  // Copy and append to the replyTo chain.
+  const replyToChain = decodeReplyToChain(replyingTo.post.tags);
+  encodeReplyToChain(postTags, replyToChain.concat(replyingTo.id));
+  
+  // Copy path segments as-is
+  Object.keys(replyingTo.post.tags).forEach(key => {
+    if (key.startsWith('path') || key.startsWith('segment')) {
+      (postTags as any)[key] = (replyingTo.post.tags as any)[key];
+    }
+  })
+
+  
+
+  const dateTags = generateDateTags(fakeDate || new Date());
+
+  return Object.assign(
+      postTags, 
+      options, 
+      dateTags,
+      { DFV: getAppVersion(), txType: 'P' as 'P' },
+      { isReply: '1' }
+    );
+}
 
 /**
  * Build the complete tags for a post.
@@ -22,7 +53,7 @@ export function buildPostTags(pathSegement: string[], options: PostTags, fakeDat
   const pathTags: PathTags = {} as any;
 
   for (var i = 0; i < segments.length; i++) {
-    (pathTags as any)[`pathSegment${i}`] = segments[i];
+    (pathTags as any)[`segment${i}`] = segments[i];
     (pathTags as any)[`path${i}`] = encodeForumPath(segments.slice(0, segments.length-i))
   }
 

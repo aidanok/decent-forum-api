@@ -9,14 +9,40 @@ import { upgradeData, tagsArrayToObject } from './utils';
 import Transaction from 'arweave/web/lib/transaction';
 import { encodeForumPath } from '../lib/forum-paths';
 
+export type QueryPostResponse = 
+  Promise<
+    Record<string, ForumPostTags> 
+    | 
+    [ Record<string, ForumPostTags>, Record<string, TransactionContent> ]
+  >;
 
-// Its *much much* faster to do this with ArQL and concurrent requests, 
-// that GraphQL. And in fact you could only use GraphQL to get the IDs. 
 
-// We can probably improve this by just grabbing the entire TX data instead
-// of tags then TX data, but there may be situations where we decide we don't 
-// want the entire TX data immediately. Also this method is a more direct mapping
-// of how a graphql implementation would work.
+export async function queryIndividualPost(tx: string, data = false): QueryPostResponse {
+  if (data) {
+    const tagsArray = await batchQueryTags([tx]);
+    const tags = tagsArrayToObject(tagsArray[0]);
+    if (tags.txType !== 'P') {
+      throw new Error('Not a post');
+    }
+    return { [tx]: tags }
+  } else {
+    const postContent: Record<string, TransactionContent> = {};
+    const [ tagsArray, content ] = await Promise.all([
+      await batchQueryTags([tx]),
+      await batchQueryTx([tx]),
+    ])
+    const tags = tagsArrayToObject(tagsArray[0]);
+    if (tags.txType !== 'P') {
+      throw new Error('Not a post');
+    }
+    if (content[0] === null) {
+      throw new Error('Couldnt retriev content');
+    }
+    await collectPostContents(postContent, [tx], content);
+    return [ { [tx]: tags }, postContent ];
+  }
+}
+
 
 export async function queryThread(txId: string, depth: number, cache: ForumCache): Promise<PostTreeNode> {
   

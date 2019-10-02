@@ -11,12 +11,12 @@ const randomPollTime = () =>
   new Promise(res => setTimeout(res, Math.random() * (MAX_POLL_TIME - MIN_POLL_TIME) + MIN_POLL_TIME))
 
 // We don't want to completely hammer the node with requests when we 
-// need to sync/backfill, so we use a small delay for that.
-const randomSyncTime = () => 
+// need to backfill, so we use a (much) smaller random delay for that.
+const randomSyncDelay = () => 
   new Promise(res => setTimeout(res, (Math.random() * (MAX_POLL_TIME - MIN_POLL_TIME) + MIN_POLL_TIME) / 120))
 
 
-const BLOCKS_TO_SYNC = 7;
+export const BLOCKS_TO_SYNC = 7;
 
 // Partial typing of the raw block format from the /blocks endpoint.
 interface RawBlock { 
@@ -60,7 +60,7 @@ export class BlockWatcher {
   public subscribe(handler: BlockWatcherSubscriber): number {
     var subs = Object.values(this.subscribers)
     
-    if (Object.values(this.subscribers).findIndex(x => x == handler) === -1) {
+    if (Object.values(this.subscribers).findIndex(x => x == handler) !== -1) {
       throw new Error('This handler is already subscribed');
     } else {
       this.subscribers[++this.idGen] = handler;
@@ -101,7 +101,7 @@ export class BlockWatcher {
 
     while (hash && (i < BLOCKS_TO_SYNC)) {
       if (i > 0) {
-        await randomSyncTime();
+        await randomSyncDelay();
       }
       hash = await this.maybeUpdate(hash, i);
       if (!hash) {

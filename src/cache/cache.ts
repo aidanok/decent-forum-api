@@ -5,6 +5,7 @@ import { ForumTreeNode } from './forum-tree-node';
 import { PostTreeNode } from './post-tree-node';
 import { ForumPostTags } from '../schema';
 import { TransactionContent } from './transaction-extra';
+import { decodeReplyToChain } from '../schema/post-tags';
 
 /**
  * A client side cache of forums/posts/votes
@@ -207,9 +208,10 @@ export class ForumCache {
 
       // Recurse to ensure our parent post is added
       // before we are.
-      if (tags.replyTo) {
-        console.log(`${id} is replyTo ${tags.replyTo}`)
-        existing = tryFindParentForReply(tags.replyTo);
+      const replyTo = tags.replyTo0 ? decodeReplyToChain(tags).slice(-1)[0] : tags.replyTo
+      if (replyTo) {
+        console.log(`${id} is replyTo ${replyTo}`)
+        existing = tryFindParentForReply(replyTo);
         if (existing) {
           const newNode = existing.addReply(new CachedForumPost(id, tags))
           this.posts.push(newNode);
