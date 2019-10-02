@@ -46,11 +46,13 @@ export interface PostTags {
    * at the end. 
    *  
    */
-  replyTo: string // deprecated.
+
   replyTo0?: string
   replyTo1?: string
   // ... etc ... //
 
+  replyTo?: string // deprecated. still being populated alongside the denormalized form. 
+  
 
   /**
    * (Optional) TX of the post this is an edit of. Must be from the same wallet.

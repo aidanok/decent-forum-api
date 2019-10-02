@@ -27,3 +27,4 @@ export function tagsArrayToObject(tags: DecodedTag[]): ForumItemTags {
   }
   return x as ForumItemTags;
 }
+

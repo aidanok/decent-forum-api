@@ -104,9 +104,6 @@ export async function postPost(wallet: any, postData: string | Buffer, tags: For
   }
 }
 
-export async function voteOnPost(wallet: any, vote: VoteTags) {
-
-}
 
 
 

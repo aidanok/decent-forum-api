@@ -4,6 +4,7 @@ import { ForumPostTags } from '../schema';
 import { TransactionExtra } from './transaction-extra';
 import { AxiosResponse } from 'axios';
 import { BlockWatcher, BlockWatcherSubscriber } from '../block-watcher/block-watcher';
+import { VoteTags } from 'decent-forum-api/schema/vote-tags';
 
 // Poll some random time between 60 and 120 seconds.
 
@@ -56,6 +57,10 @@ export class PendingTxTracker {
     this.loop();
   }
 
+  public async addPendingVoteTx(tx: Transaction, tags: VoteTags) {
+    
+  }
+
   public async addPendingPostTx(tx: Transaction, tags: ForumPostTags) {
     const extra: TransactionExtra = {
       isPendingTx: true,
@@ -72,7 +77,7 @@ export class PendingTxTracker {
     console.log(`[PendingTxTracker] Started tracking TX: ${tx.id}`);
   }
 
-  async loop() {
+  private async loop() {
     try {
       const pollTime = randomPollTime();
       console.info(`Polling in ${pollTime/1000} seconds`);
@@ -88,7 +93,7 @@ export class PendingTxTracker {
     this.loop();
   }
 
-  async checkIndividual(txId: string) {
+  private async checkIndividual(txId: string) {
     // IMPORTANT: we should be careful about what we treat as errors.
     // Generally we are just looking to take care of propogation delays, 
     // so anything other than a 404 is not counted as an error. Though
@@ -115,7 +120,7 @@ export class PendingTxTracker {
     console.log(`[PendingTXTracker] TX ${txId} is still pending (${response && response.status})`)
   }
 
-  confirmTx(txId: string) {
+  private confirmTx(txId: string) {
     const p = this.pending[txId];
     console.log(`[PendingTXTracker] Pending TX: ${txId} CONFIRMED`);
     this.cache.addPostsContent({
