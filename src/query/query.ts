@@ -135,12 +135,9 @@ export async function queryAll(forum: string[], cache: ForumCache, retrieveConte
   retrieveContent && await collectPostContents(postsContent, results, content);
 
   // TODO, get votes & full Tx data before adding. 
-  console.log('adding to cache');  
   cache.addPostsMetadata(posts);
   retrieveContent && cache.addPostsContent(postsContent);
-  console.log('added to cache');
   
-  console.log('cache ', cache.forums.children.length);
 }
 
 /**

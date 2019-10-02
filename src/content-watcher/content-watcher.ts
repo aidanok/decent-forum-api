@@ -39,8 +39,6 @@ export class ContentWatcher {
         });
       }
     }
-    console.log(this.interesting);
-    console.log('^^ INTERESTING ^^');
     // Trim any blocks that the watcher doesnt have anymore.
     Object.keys(this.content).forEach(key => {
       if (!blocks.find(b => b.hash === key)) {

@@ -200,7 +200,7 @@ export class ForumCache {
       if (existing) {
         return existing;
       }
-      console.log(`Trying to add ${id}`);
+      console.log(`Trying to add to cache ${id}`);
       const tags = posts[id];
       if (!tags) {
         throw new Error('No post tags provided!');
@@ -210,7 +210,6 @@ export class ForumCache {
       // before we are.
       const replyTo = tags.replyTo0 ? decodeReplyToChain(tags).slice(-1)[0] : tags.replyTo
       if (replyTo) {
-        console.log(`${id} is replyTo ${replyTo}`)
         existing = tryFindParentForReply(replyTo);
         if (existing) {
           const newNode = existing.addReply(new CachedForumPost(id, tags))
@@ -221,7 +220,6 @@ export class ForumCache {
         return;
       }
       if (tags.editOf) {
-        console.log(`${id} is editOf ${tags.editOf}`)
         existing = tryFindParentForEdit(tags.editOf)
         if (existing) {
           // Note we return the parent here. edits never have children...
@@ -245,7 +243,7 @@ export class ForumCache {
 
     console.info(`Added ${Object.keys(posts).length}, ${Object.keys(orphans).length} orphans, cache posts: ${this.posts.length}`)  
     if (Object.keys(orphans).length > 0) {
-      console.log('orphans', orphans); 
+      console.debug('orphans', orphans); 
     }
     
     return orphans;

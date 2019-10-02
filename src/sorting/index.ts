@@ -18,7 +18,7 @@ export function scoreByVotesAndTime(upVotes: number, downVotes: number, time: Da
   // score.
   const age = (Date.now() - time.getTime()) / 1000 / 60 / 60;
   const bonusVotes = (Math.max(0, MAX_RECENY - age) * BONUS_VOTES_PER_RECENT_HOUR);
-  console.log(`AGE: ${age}, BONUS: ${bonusVotes}`)
+  //console.log(`AGE: ${age}, BONUS: ${bonusVotes}`)
   return upVotes - downVotes + bonusVotes;
 }
 
