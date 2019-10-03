@@ -65,7 +65,7 @@ export interface PostTags {
 
 export function decodeReplyToChain(tags: PostTags) {
   const numbers = Object.keys(tags)
-    .filter(tname => tname.startsWith('replyTo'))
+    .filter(tname => tname.startsWith('replyTo') && tname.length > 7)
     .map(tname => new Number(tname.substr(7)))
     .sort();
 

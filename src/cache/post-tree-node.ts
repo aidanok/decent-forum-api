@@ -103,6 +103,17 @@ export class PostTreeNode {
   }
 
   /**
+   * Get total votes for all edits of this post only. 
+   * 
+   */
+  public getAggregatedVotes(): { upVotes: number, downVotes: number} {
+    let upVotes = this.post.upVotes, downVotes = this.post.downVotes;
+    this.edits.forEach(e => upVotes += e.post.upVotes);
+    this.edits.forEach(e => downVotes += e.post.downVotes);
+    return { upVotes, downVotes }
+  }
+
+  /**
    * Gets the forum path.
    */
   public getForumPath(): string[] {

@@ -1,20 +1,18 @@
 import { arweave } from '../lib/permaweb';
-import { NetworkInfoInterface } from 'arweave/web/network';
 
-
-
-// Poll some random time between 1 & 3 minutes.
-const MIN_POLL_TIME = 60*1000*1;
-const MAX_POLL_TIME = 60*1000*3;
+// Poll some random time between 2 & 4 minutes.
+const MIN_POLL_TIME = 60*1000*2;
+const MAX_POLL_TIME = 60*1000*4;
 
 const randomPollTime = () => 
   new Promise(res => setTimeout(res, Math.random() * (MAX_POLL_TIME - MIN_POLL_TIME) + MIN_POLL_TIME))
 
 // We don't want to completely hammer the node with requests when we 
 // need to backfill, so we use a (much) smaller random delay for that.
+// Not sure if a delay is really needed.
+
 const randomSyncDelay = () => 
   new Promise(res => setTimeout(res, (Math.random() * (MAX_POLL_TIME - MIN_POLL_TIME) + MIN_POLL_TIME) / 120))
-
 
 export const BLOCKS_TO_SYNC = 7;
 

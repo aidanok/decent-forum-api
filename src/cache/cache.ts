@@ -58,7 +58,7 @@ import { decodeTransactionTags } from './cache-utils'
  * these limitations.
  * 
  * This class is not specific to Vue, it has no dependencies on it, 
- * so it should be useable without another frontend framework.
+ * so it should be useable with another frontend framework.
  * 
  */
 export class ForumCache {
@@ -215,6 +215,7 @@ export class ForumCache {
 
       // Recurse to ensure our parent post is added
       // before we are.
+      // replyTo is deprecated but still in use, this gets either format.
       const replyTo = tags.replyTo0 ? decodeReplyToChain(tags).slice(-1)[0] : tags.replyTo
       if (replyTo) {
         existing = tryFindParentForReply(replyTo);

@@ -13,13 +13,14 @@ export function buildPostTagsForReply(replyingTo: PostTreeNode, options?: Partia
   
   const postTags: PostTags = {} as any;
   
-  // deprecated
-  postTags.replyTo = replyingTo.post.tags.replyTo;
   
   // Copy and append to the replyTo chain.
   const replyToChain = decodeReplyToChain(replyingTo.post.tags);
   encodeReplyToChain(postTags, replyToChain.concat(replyingTo.id));
-  
+
+  // deprecated but still important!
+  postTags.replyTo = replyingTo.id;
+ 
   // Copy path segments as-is
   Object.keys(replyingTo.post.tags).forEach(key => {
     if (key.startsWith('path') || key.startsWith('segment')) {
@@ -50,7 +51,6 @@ export function buildPostTagsForReply(replyingTo: PostTreeNode, options?: Partia
 export function buildPostTags(pathSegement: string[], options: PostTags, fakeDate?: Date): ForumPostTags {
   
   const segments = normalizeForumPathSegments(pathSegement);
-  
   const pathTags: PathTags = {} as any;
 
   for (var i = 0; i < segments.length; i++) {

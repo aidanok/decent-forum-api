@@ -21,4 +21,5 @@ export class CachedForumPost {
   ) {
     this.date = dateTagsToDate(tags)
   }
+  
 };

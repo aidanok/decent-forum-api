@@ -30,6 +30,7 @@ export function sortPostNodes(a: PostTreeNode, b: PostTreeNode) {
 
 
 
+
 /**
  * Filter to check if a post should be hidden. 
  * TODO: Be a bit more relaxed for recent posts.
