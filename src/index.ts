@@ -1,6 +1,8 @@
 
 import { arweave } from './lib/permaweb';
 import { postPost, buildPostTags } from './lib/post';
+import { voteOnPost } from './lib/vote';
+
 import { queryAll } from './query/query';
 import { ForumCache } from './cache/cache';
 import { ForumTreeNode } from "./cache/forum-tree-node";
@@ -19,6 +21,7 @@ export {
   arweave, 
   postPost, 
   buildPostTags, 
+  voteOnPost,
   queryAll as queryPosts,
   encodeForumPath,
   decodeForumPath, 
@@ -27,5 +30,5 @@ export {
   ForumCache,
   CachedForumPost, 
   CachedForumVote,
-  PendingTxTracker
+  PendingTxTracker,
 }
