@@ -36,6 +36,7 @@ export class PostTreeNode {
   isPendingTx: boolean;
   parent: PostTreeNode | null = null;
   contentProblem: string | null = null;
+  voters: string[] = []
   
   // TODO: store a reference to ForumTreeNode instead of path.
   constructor(id: string, forum: ForumTreeNode, post: CachedForumPost, opts: PostTreeNodeCreateOptions = {}) {

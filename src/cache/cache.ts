@@ -6,6 +6,9 @@ import { PostTreeNode } from './post-tree-node';
 import { ForumPostTags } from '../schema';
 import { TransactionContent } from './transaction-extra';
 import { decodeReplyToChain } from '../schema/post-tags';
+import { Tag } from 'arweave/web/lib/transaction';
+import { arweave } from '..';
+import { decodeTransactionTags } from './cache-utils'
 
 /**
  * A client side cache of forums/posts/votes
@@ -78,9 +81,9 @@ export class ForumCache {
   private posts: PostTreeNode[] = []
 
   /**
-   * All votes
+   * All votes, just record their ids.
    */
-  private votes: CachedForumVote[] = []
+  private votes: string[] = []
   
 
   /**
@@ -116,6 +119,10 @@ export class ForumCache {
    */
   public findPostNode(txId: string): PostTreeNode | null {
     return this.posts.find(x => x.post.id === txId) || null;
+  }
+
+  public isVoteCounted(txId: string): boolean {
+    return this.votes.indexOf(txId) !== -1;
   }
 
   /**
@@ -265,10 +272,26 @@ export class ForumCache {
   public addPostsContent(content: Record<string, TransactionContent>) {
     let count = 0, problems = 0, total = 0;
     Object.keys(content).forEach(txId => {
+      const txContent = content[txId];
       total++;
+      
+      // Just check this is really a post, skip otherwise.
+     
+      if (txContent) {
+        const tags = decodeTransactionTags(txContent.tx);
+
+        if (!tags['txType'] || tags['txType'] !== 'P') {
+          console.warn(tags);
+          console.warn(`Not a post type, skipping, txType`);
+          problems++;
+          return;
+        }
+      }
+      
+      
       const postNode = this.findPostNode(txId);
       if (postNode && !postNode.isContentFiled() && !postNode.isPendingTx) {
-        const txContent = content[txId];
+        
         if (!txContent) {
           // mark as problem.
           postNode.contentProblem = 'Failed to load (Unknown)';
@@ -282,6 +305,77 @@ export class ForumCache {
       }
     })
     console.log(`[Cache] Added ${count} post's content, with ${problems} missing. (${total})`);
+  }
+
+  public addVotesContent(content: Record<string, TransactionContent>) {
+    console.log(`Got ${Object.keys(content).length} votes to add to cache`);
+    const requiredAmt = 0.1;
+    Object.keys(content).forEach(txId => {
+      const txContent = content[txId];
+      if (!txContent) {
+        console.warn(`Got no data in votes content, skipping`);
+        return;
+      }
+      const tags = decodeTransactionTags(txContent.tx);
+      console.log(tags);
+      console.log(`Checking vote`);
+      if (tags['txType'] !== 'V' && !tags['voteFor'] && !tags['voteType']) {
+        // not a vote, ignore it
+        console.warn(tags);
+        console.warn(`Ignorning non-vote passed to addVotesContent`);
+        return;
+      }
+
+      const from = txContent.extra.ownerAddress;
+      // Now just verify the amount, find the post, verify its not 
+      // the owner and the user didnt vote before. 
+      const txQty = new Number(arweave.ar.winstonToAr(txContent.tx.quantity));
+      const txReward = new Number(arweave.ar.winstonToAr(txContent.tx.reward));
+      const upVote = tags['voteType'] === '+'; 
+      const voteFor = tags['voteFor']
+      
+      // VALIDATE  
+
+      const postNode = this.findPostNode(voteFor);
+      console.log(`Found for vote ${voteFor}? ${!!postNode}`);
+      
+      if (!postNode) {
+        console.warn('Vote for a post we dont have, ignoring');
+        return; 
+      }
+      
+      if (upVote && txQty < requiredAmt) {
+        console.warn('upVote doesnt have the required amount, ignoring');
+        return;
+      }
+      if (!upVote && txReward < requiredAmt) {
+        console.warn(`downVote doesnt have the required amount, ignoring`);
+        return
+      }
+      if (!tags['voteFor']) {
+        console.warn(`Vote doesnt have a validFor field: ${tags['voteFor']}`);
+        return;
+      }
+      
+      if (postNode.post.from === from) {
+        console.warn('Vote for post by its owner, ignoring');
+        return; 
+      }
+      if (postNode.voters.indexOf(from) !== -1) {
+        console.warn(`Vote from ${from} already counted, ignoring`);
+        return; 
+      }
+      // OK we can count the vote.
+      console.info('ADDING VOTE');
+      if (upVote) {
+        postNode.post.upVotes++;
+        postNode.voters.push(from);
+      } else {
+        postNode.post.downVotes++;
+        postNode.voters.push(from);
+      }
+      
+    })
   }
 
   public markPendingTxAsFailed(id: string) {

@@ -4,8 +4,8 @@ import { PostTreeNode } from '..';
 const HIDE_THESEHOLD = -3;
 
 // Parameters for scoring posts extra based on recency.
-const BONUS_VOTES_PER_RECENT_HOUR = 500;
-const MAX_RECENY = 6; 
+const BONUS_VOTES_PER_RECENT_HOUR = 100;
+const MAX_RECENY = 2; 
 
 // TODO: this is a pretty poor first pass at giving more recent posts
 // higher ranking. Ideally we should be 
@@ -27,6 +27,8 @@ export function sortPostNodes(a: PostTreeNode, b: PostTreeNode) {
   var scoreB = scoreByVotesAndTime(b.post.upVotes, b.post.downVotes, b.post.date);
   return scoreB - scoreA;
 }
+
+
 
 /**
  * Filter to check if a post should be hidden. 

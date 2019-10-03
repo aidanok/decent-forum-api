@@ -11,6 +11,7 @@ import Transaction from "arweave/web/lib/transaction";
 export interface TransactionExtra {
   ownerAddress: string
   isPendingTx: boolean
+  txType: string 
 }
 
 /**

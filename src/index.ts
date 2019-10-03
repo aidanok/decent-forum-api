@@ -3,7 +3,7 @@ import { arweave } from './lib/permaweb';
 import { postPost, buildPostTags } from './lib/post';
 import { voteOnPost } from './lib/vote';
 
-import { queryAll } from './query/query';
+import { queryPosts } from './query/query';
 import { ForumCache } from './cache/cache';
 import { ForumTreeNode } from "./cache/forum-tree-node";
 import { CachedForumVote } from "./cache/cached-forum-vote";
@@ -22,7 +22,7 @@ export {
   postPost, 
   buildPostTags, 
   voteOnPost,
-  queryAll as queryPosts,
+  queryPosts,
   encodeForumPath,
   decodeForumPath, 
   ForumTreeNode,

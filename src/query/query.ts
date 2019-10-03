@@ -4,9 +4,9 @@ import { getAppVersion } from '../lib/schema-version';
 import { arweave, PostTreeNode, ForumCache } from '..';
 import { batchQueryTags, DecodedTag, queryTags, batchQueryTx } from '../lib/permaweb';
 import { TransactionContent } from '../cache/transaction-extra';
-import { ForumItemTags, ForumPostTags } from '../schema';
+import { ForumItemTags, ForumPostTags, ForumVoteTags } from '../schema';
 import { upgradeData, tagsArrayToObject } from './utils';
-import Transaction from 'arweave/web/lib/transaction';
+import Transaction, { Tag } from 'arweave/web/lib/transaction';
 import { encodeForumPath } from '../lib/forum-paths';
 
 export type QueryPostResponse = 
@@ -16,7 +16,7 @@ export type QueryPostResponse =
     [ Record<string, ForumPostTags>, Record<string, TransactionContent> ]
   >;
 
-
+// un-used!!
 export async function queryIndividualPost(tx: string, data = false): QueryPostResponse {
   if (data) {
     const tagsArray = await batchQueryTags([tx]);
@@ -38,7 +38,7 @@ export async function queryIndividualPost(tx: string, data = false): QueryPostRe
     if (content[0] === null) {
       throw new Error('Couldnt retriev content');
     }
-    await collectPostContents(postContent, [tx], content);
+    await collectItemContents(postContent, [tx], content);
     return [ { [tx]: tags }, postContent ];
   }
 }
@@ -47,6 +47,7 @@ export async function queryIndividualPost(tx: string, data = false): QueryPostRe
 export async function queryThread(txId: string, depth: number, cache: ForumCache): Promise<PostTreeNode> {
   
   const postMetadata: Record<string, ForumPostTags> = {};
+  const voteMetadata: Record<string, ForumVoteTags> = {};
   const postContents: Record<string, TransactionContent> = {};
   
   // NOTE: we start with a txId, no tags or data,
@@ -65,7 +66,8 @@ export async function queryThread(txId: string, depth: number, cache: ForumCache
       equals('DFV', getAppVersion()),
       or(
         ...current.map(txId => equals('replyTo', txId)),
-        ...current.map(txId => equals('editOf', txId))
+        ...current.map(txId => equals('editOf', txId)),
+        ...current.map(txId => equals('voteFor', txId))
       )
     );
 
@@ -73,8 +75,8 @@ export async function queryThread(txId: string, depth: number, cache: ForumCache
     // still query for their replies/edits.
     const curCount = current.length;
     current = current.filter(id => { 
-      const found = cache.findPostNode(id);
-      return !found || !found.isContentFiled();
+      const found = cache.findPostNode(id)
+      return !found || !found.isContentFiled() || cache.isVoteCounted(id);
     });
     console.info(`[Query] Skipping content and metadata retrieval for ${curCount - current.length}`);
 
@@ -84,32 +86,56 @@ export async function queryThread(txId: string, depth: number, cache: ForumCache
       await arweave.arql(filter)
     ])
     
+    // TODO rremove upgrade data as its oooold data now.
     collectPostMetadata(postMetadata, current, tagsArrays.map(upgradeData).map(tagsArrayToObject)); 
+    
+    // dont actually need to seperate out the votes.. we just deal with them as 
+    // whole TXs, since we need to verify them. This could change using graphql. 
+
+    //s collectVoteMetadata(voteMetadata, current, tagsArrays.map(tagsArrayToObject));
     
     // dont actually need to await to start the next iteration. but 
     // the async operation is just a call out to native crypto so meh
     // if we were doing network ops we should not await here but only
     // after all iterations are done.
-    await collectPostContents(postContents, current, content);
+    await collectItemContents(postContents, current, content);
     
     current = next;
   }
 
+  // Seperate votes and record contents
+  const votes: Record<string, TransactionContent> = {};
+  const posts: Record<string, TransactionContent> = {}; 
+  Object.keys(postContents).forEach(key => {
+    const item = postContents[key];
+    if (!item) {
+      return;
+    }
+    if (item.extra.txType === 'P') {
+      posts[key] = item 
+    }
+    if (item.extra.txType === 'V') {
+      votes[key] = item
+    }
+    console.log(`DFFDFFFF: ${item.extra.txType}`)
+  })
+
   // Finally, add everything to the cache.
   if (cache) {
     cache.addPostsMetadata(postMetadata);
-    cache.addPostsContent(postContents);
+    cache.addPostsContent(posts);
+    cache.addVotesContent(votes);
   }
   return cache.findPostNode(txId)!;
 }
 
 export async function queryForumIntoCache(forum: string[], cache: ForumCache) {
-  return queryAll(forum, cache);
+  return queryPosts(forum, cache);
 }
 
 // This will collect all votes and metatags of posts, but not the content of posts.
 
-export async function queryAll(forum: string[], cache: ForumCache, retrieveContent = false) {
+export async function queryPosts(forum: string[], cache: ForumCache, retrieveContent = true) {
   
   const APP_FILTER = forum.length ? 
     and(equals('DFV', getAppVersion()), equals('path0', encodeForumPath(forum)))
@@ -132,11 +158,31 @@ export async function queryAll(forum: string[], cache: ForumCache, retrieveConte
   const tags = tagsArrays.map(upgradeData).map(tagsArrayToObject);
 
   collectPostMetadata(posts, results, tags);
-  retrieveContent && await collectPostContents(postsContent, results, content);
+  retrieveContent && await collectItemContents(postsContent, results, content);
+
+
+  const voteTxs: Record<string, TransactionContent> = {};
+  const postTxs: Record<string, TransactionContent> = {}; 
+  Object.keys(postsContent).forEach(key => {
+    const item = postsContent[key];
+    if (!item) {
+      return;
+    }
+    if (item.extra.txType === 'P') {
+      postTxs[key] = item 
+    }
+    if (item.extra.txType === 'V') {
+      voteTxs[key] = item 
+    }
+    console.log(`DFFDFFFF: ${item.extra.txType}`)
+  })
+
 
   // TODO, get votes & full Tx data before adding. 
   cache.addPostsMetadata(posts);
-  retrieveContent && cache.addPostsContent(postsContent);
+  cache.addPostsContent(postTxs);
+  cache.addVotesContent(voteTxs);
+
   
 }
 
@@ -157,20 +203,42 @@ function collectPostMetadata(posts: Record<string, ForumPostTags>, ids: string[]
 }
 
 /**
- * Collect post content into an object from two arrays.
+ * Collects post metadata into a object from two arrays.
+ * 
+ * @param votes 
+ * @param ids 
+ * @param tags
+ */
+
+function collectVoteMetadata(votes: Record<string, ForumVoteTags>, ids: string[], tags:ForumItemTags[]) {
+  for (var x = 0; x < ids.length; x++) {
+    const itemTags = tags[x];
+    if (itemTags.txType === 'V') {
+      votes[ids[x]] = itemTags;
+    }
+  }
+}
+
+/**
+ * Collect item content into an object from two arrays.
  * Resolves the tx.owner => walletAddress 
  * 
  * @param contents 
  * @param ids 
  * @param content 
  */
-async function collectPostContents(contents: Record<string, TransactionContent>, ids: string[], content: (Transaction|null)[] ) {
+async function collectItemContents(contents: Record<string, TransactionContent>, ids: string[], content: (Transaction|null)[] ) {
   const extras = await Promise.all(
     content.map(async x => { 
       if (x) {
+        // get the txType tag out 
+        const tags: Tag[] = x.get('tags') as any;
+        const txTypeTag = tags.find(x => x.get('name', { decode: true, string: true} ) === 'txType');
+        const txType = (txTypeTag && txTypeTag.get('value', { decode: true , string: true })) || ''
         return { 
           ownerAddress: await arweave.wallets.ownerToAddress(x.owner),
           isPendingTx: false,
+          txType,
         }
       }
       return null;

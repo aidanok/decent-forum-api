@@ -7,6 +7,7 @@ import { PathTags } from '../schema/path-tags';
 import { getAppVersion } from './schema-version';
 import { PostTags, decodeReplyToChain, encodeReplyToChain } from '../schema/post-tags';
 import { generateDateTags } from '../schema/date-tags';
+import { addStandardTags } from './schema-utils';
 
 export function buildPostTagsForReply(replyingTo: PostTreeNode, options?: Partial<PostTags>, fakeDate?: Date) { 
   
@@ -59,8 +60,10 @@ export function buildPostTags(pathSegement: string[], options: PostTags, fakeDat
 
   // Get date tags
   const dateTags = generateDateTags(fakeDate || new Date());
-
-  return Object.assign(pathTags, options, dateTags, { DFV: getAppVersion(), txType: 'P' as 'P' });
+  
+  const tags = Object.assign(pathTags, options, dateTags, { DFV: getAppVersion(), txType: 'P' as 'P' });
+  addStandardTags(tags as any);
+  return tags;
 }
 
 /**

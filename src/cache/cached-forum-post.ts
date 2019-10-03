@@ -14,8 +14,8 @@ export class CachedForumPost {
   constructor(
     public id: string,
     public tags: ForumPostTags,
-    public upVotes: number = Math.round(Math.random() * 5),
-    public downVotes: number = Math.round(Math.random() * 3),
+    public upVotes = 0,
+    public downVotes = 0,
     public content: string | null = null,
     public from: string | null = null
   ) {

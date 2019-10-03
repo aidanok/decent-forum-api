@@ -1,10 +1,10 @@
 import Transaction from 'arweave/web/lib/transaction';
 import { ForumCache, arweave } from '..';
-import { ForumPostTags } from '../schema';
+import { ForumPostTags, ForumItemTags, ForumVoteTags } from '../schema';
 import { TransactionExtra } from './transaction-extra';
 import { AxiosResponse } from 'axios';
 import { BlockWatcher, BlockWatcherSubscriber } from '../block-watcher/block-watcher';
-import { VoteTags } from 'decent-forum-api/schema/vote-tags';
+import { VoteTags } from '../schema/vote-tags';
 
 // Poll some random time between 60 and 120 seconds.
 
@@ -44,7 +44,7 @@ const MAX_ERRORS = 3;
    // Keep these around to give to cache later on confirm,
    // and to maybe put into a failed list for user feedback.
    tx: Transaction,
-   tags: ForumPostTags,
+   tags: ForumItemTags
    extra: TransactionExtra,
  }
 
@@ -57,14 +57,26 @@ export class PendingTxTracker {
     this.loop();
   }
 
-  public async addPendingVoteTx(tx: Transaction, tags: VoteTags) {
-    
+  public async addPendingVoteTx(tx: Transaction, tags: ForumVoteTags) {
+    const extra: TransactionExtra = {
+      isPendingTx: true,
+      ownerAddress: await arweave.wallets.ownerToAddress(tx.owner),
+      txType: tags.txType,
+    }
+    this.cache.addVotesContent({[tx.id]: { tx, extra }})
+    this.pending[tx.id] = {
+      countErrors: 0,
+      tx,
+      tags,
+      extra,
+    }
   }
 
   public async addPendingPostTx(tx: Transaction, tags: ForumPostTags) {
     const extra: TransactionExtra = {
       isPendingTx: true,
       ownerAddress: await arweave.wallets.ownerToAddress(tx.owner),
+      txType: tags.txType,
     }
     this.cache.addPostsMetadata({ [tx.id]: tags });
     this.cache.addPostsContent({[tx.id]: { tx, extra }});
@@ -123,13 +135,26 @@ export class PendingTxTracker {
   private confirmTx(txId: string) {
     const p = this.pending[txId];
     console.log(`[PendingTXTracker] Pending TX: ${txId} CONFIRMED`);
-    this.cache.addPostsContent({
-      [txId]: {
-        tx: p.tx,
-        extra: Object.assign({}, p.extra, { isPendingTx: false }),
-      }
-    })
     delete this.pending[txId];
     console.info(`[PendingTXTracker] Pending TX: ${txId} CONFIRMED and cache updated.`);
+
+    if (p.extra.txType === 'P') {
+      this.cache.addPostsContent({
+        [txId]: {
+          tx: p.tx,
+          extra: Object.assign({}, p.extra, { isPendingTx: false }),
+        }
+      })
+    }
+
+    if (p.extra.txType === 'V') {
+      this.cache.addVotesContent({
+        [txId]: {
+          tx: p.tx,
+          extra: Object.assign({}, p.extra, { isPendingTx: false }),
+        }
+      })
+    }
+    
   }
 }
