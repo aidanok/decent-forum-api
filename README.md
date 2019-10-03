@@ -1,6 +1,6 @@
 
 
-# Decent-a-Forums API 
+### Decent-a-Forums API 
 
 This is a typescript library that powers decent-a-forums. (https://github.com/aokisok/decent-forum) This library is not really intented to be published or used as a library yet, api interfaces will change. 
 
