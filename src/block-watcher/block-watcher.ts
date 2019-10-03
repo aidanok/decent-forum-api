@@ -37,8 +37,9 @@ export interface BlockWatcherSubscriber {
 
 /**
  * Watches for new blocks to inform subscribers.
- * 
- * This is currently unfinished and not used anywhere.
+ *  
+ * Will detect if we missed blocks (or if there is a re-org) and 
+ * inform subscribers. 
  * 
  */ 
 
@@ -143,8 +144,8 @@ export class BlockWatcher {
   // Checks if the block at IDX in our list matches hash, if not 
   // retrieve that block, insert in our list at IDX and return
   // the previous_block hash.
-  // If that hash matches our list returned undefined, indicating we 
-  // are properly synced from IDX onwards in our list. 
+  // If it does match, return undefined, indicating we are properly synced 
+  // from IDX onwards in our list. 
   private async maybeUpdate(hash: string, idx: number): Promise<string | undefined> {
     if (hash !== (this.blocks[idx] && this.blocks[idx].hash)) {
       let block: RawBlock = await arweave.api.get(`/block/hash/${hash}`).then(x => x.data);
