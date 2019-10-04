@@ -4,7 +4,42 @@ import { arweave, ForumCache } from "..";
 import { ForumPostTags } from '../schema';
 import { batchQueryTx } from '../lib/permaweb';
 import { decodeTransactionTags } from '../cache/cache-utils';
-import { AllTransactionInfo } from './query-thread';
+
+/**
+ * We decode the transaction into this structure to give it to the cache, 
+ * Includes some redundancy for compatability purposes. 
+ * The cache does not  do any async operations, so we need to do anything async 
+ * before giving it data (convert owner to ownerAddress)
+ * Its also useful to just immediately decode the tags.
+ * 
+ */
+export interface AllTransactionInfo {
+  
+  /**
+   * The decoded tags
+   */
+  tags: Record<string, string>
+  
+  /**
+   * The raw TX
+   */
+  tx: Transaction
+  
+  /**
+   * For compat, ignore.
+   */
+  extra: TransactionExtra 
+  
+  /**
+   * The from wallet address 
+   */
+  ownerAddress: string
+  
+  /**
+   * Flag indicating whether this TX is pending in the mempool or it was the result of a query.
+   */ 
+  isPendingTx: boolean 
+}
 
 
 export async function fillCache(txIds: string[], cache: ForumCache) {
@@ -14,6 +49,14 @@ export async function fillCache(txIds: string[], cache: ForumCache) {
   const postContents: Record<string, TransactionContent> = {};
   const voteContents: Record<string, TransactionContent> = {};
   
+  const origLen = txIds.length;
+  // Filter out things we dont need to query for. 
+  txIds = txIds.filter(id => 
+    !(cache.isFullTxPresent(id) || cache.isVoteCounted(id))
+  );
+
+  console.info(`[FillCache] Skipping retrieving ${origLen - txIds.length} that are in the cache`)
+
   // Get all tx data and ignore any nulls.  
   const maybeTxs = await batchQueryTx(txIds);
 

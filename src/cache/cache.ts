@@ -86,6 +86,14 @@ export class ForumCache {
   private votes: string[] = []
   
 
+  public getCachedPostCount() {
+    return this.posts.length;
+  }
+  
+  public getCachedVotesCount() {
+    return this.votes.length;
+  }
+
   /**
    * Searches for a ForumTreeNode for a given path, 
    * 
@@ -127,7 +135,7 @@ export class ForumCache {
 
   public isFullTxPresent(txId: string): boolean {
     const pn = this.findPostNode(txId);
-    return !!(pn && pn.isContentFiled());
+    return !!(pn && pn.isPendingTx && pn.isContentFiled());
   }
 
   /**
@@ -332,7 +340,7 @@ export class ForumCache {
       const tags = decodeTransactionTags(txContent.tx);
       console.log(tags);
       console.log(`Checking vote`);
-      if (tags['txType'] !== 'V' && !tags['voteFor'] && !tags['voteType']) {
+      if (tags['txType'] !== 'V' && !tags['refToCount'] && !tags['voteType']) {
         // not a vote, ignore it
         console.warn(tags);
         console.warn(`Ignorning non-vote passed to addVotesContent`);
@@ -345,7 +353,7 @@ export class ForumCache {
       const txQty = new Number(arweave.ar.winstonToAr(txContent.tx.quantity));
       const txReward = new Number(arweave.ar.winstonToAr(txContent.tx.reward));
       const upVote = tags['voteType'] === '+'; 
-      const voteFor = tags['voteFor']
+      const voteFor = getRefParent(tags as any);
       
       // VALIDATE  
 
@@ -357,6 +365,10 @@ export class ForumCache {
         return; 
       }
       
+      // We can record that we HAVE this vote now, regardless of whether its valid or 
+      // not, this will save us querying it again.
+      this.votes.push(txContent.tx.id);
+
       if (upVote && txQty < requiredAmt) {
         console.warn('upVote doesnt have the required amount, ignoring');
         return;
@@ -365,10 +377,7 @@ export class ForumCache {
         console.warn(`downVote doesnt have the required amount, ignoring`);
         return
       }
-      if (!tags['voteFor']) {
-        console.warn(`Vote doesnt have a validFor field: ${tags['voteFor']}`);
-        return;
-      }
+     
       
       if (postNode.post.from === from) {
         console.warn('Vote for post by its owner, ignoring');

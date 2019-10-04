@@ -10,7 +10,7 @@ import { decodeForumPath, encodeForumPath } from './lib/forum-paths';
 import { PendingTxTracker } from './cache/pending-tx-tracker';
 import { PostTreeNode } from './cache/post-tree-node';
 import { queryForum } from './query/query-forum';
-import { queryThreadFromRoot } from './query/query-thread';
+import { queryThread } from './query/query-thread';
 
 // For quick test debugging
 if (typeof window !== 'undefined') {
@@ -24,7 +24,7 @@ export {
   buildPostTagsForReply,
   voteOnPost,
   queryForum,
-  queryThreadFromRoot,
+  queryThread as queryThreadFromRoot,
   encodeForumPath,
   decodeForumPath, 
   ForumTreeNode,

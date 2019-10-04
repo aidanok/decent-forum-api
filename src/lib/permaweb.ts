@@ -49,7 +49,7 @@ export function tagsArrayToObject(tags: DecodedTag[]): Record<string, string> {
 // export async function batchQueryTags(txIds: string[], continuations: false): Promise<DecodedTag[][]>;
 
 export async function batchQueryTags(txIds: string[]): Promise<DecodedTag[][]>  {
-  const batchSize = 20;
+  const batchSize = 6;
   const maxRequestRetries = 4;
   const context = {
     remaining: txIds.slice(),
@@ -120,8 +120,8 @@ function decodeTag(x: any): DecodedTag {
  * @param txIds 
  */
 export async function batchQueryTx(txIds: string[]): Promise<(Transaction | null)[]>  {
-  const batchSize = 20;
-  const maxRequestTrys = 4;
+  const batchSize = 6;
+  const maxRequestTrys = 2;
   const context = {
     remaining: txIds.slice(),
     results: [] as (Transaction | null)[]
