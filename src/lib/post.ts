@@ -8,18 +8,11 @@ import { getAppVersion } from './schema-version';
 import { PostTags, decodeReplyToChain, encodeReplyToChain } from '../schema/post-tags';
 import { generateDateTags } from '../schema/date-tags';
 import { addStandardTags } from './schema-utils';
+import { ReferenceToTags, copyRefTagsAppend } from '../schema/ref-to-tags';
 
 export function buildPostTagsForReply(replyingTo: PostTreeNode, options?: Partial<PostTags>, fakeDate?: Date) { 
   
-  const postTags: PostTags = {} as any;
-  
-  
-  // Copy and append to the replyTo chain.
-  const replyToChain = decodeReplyToChain(replyingTo.post.tags);
-  encodeReplyToChain(postTags, replyToChain.concat(replyingTo.id));
-
-  // deprecated but still important!
-  postTags.replyTo = replyingTo.id;
+  let postTags: PostTags = {} as any;
  
   // Copy path segments as-is
   Object.keys(replyingTo.post.tags).forEach(key => {
@@ -28,17 +21,19 @@ export function buildPostTagsForReply(replyingTo: PostTreeNode, options?: Partia
     }
   })
 
+  // Copy ref tags and append
   
-
   const dateTags = generateDateTags(fakeDate || new Date());
 
-  return Object.assign(
+  postTags =  Object.assign(
       postTags, 
       options, 
       dateTags,
       { DFV: getAppVersion(), txType: 'P' as 'P' },
       { isReply: '1' }
     );
+  copyRefTagsAppend(replyingTo.post.tags, postTags, replyingTo.id);
+  return postTags;
 }
 
 /**
@@ -60,8 +55,10 @@ export function buildPostTags(pathSegement: string[], options: PostTags, fakeDat
 
   // Get date tags
   const dateTags = generateDateTags(fakeDate || new Date());
-  
-  const tags = Object.assign(pathTags, options, dateTags, { DFV: getAppVersion(), txType: 'P' as 'P' });
+  const refTags: ReferenceToTags = {
+    refToCount: '0'
+  }
+  const tags = Object.assign(pathTags, options, dateTags, refTags, { DFV: getAppVersion(), txType: 'P' as 'P' });
   addStandardTags(tags as any);
   return tags;
 }

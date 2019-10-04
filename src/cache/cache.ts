@@ -9,6 +9,7 @@ import { decodeReplyToChain } from '../schema/post-tags';
 import { Tag } from 'arweave/web/lib/transaction';
 import { arweave } from '..';
 import { decodeTransactionTags } from './cache-utils'
+import { getRefParent } from '../schema/ref-to-tags';
 
 /**
  * A client side cache of forums/posts/votes
@@ -125,6 +126,11 @@ export class ForumCache {
     return this.votes.indexOf(txId) !== -1;
   }
 
+  public isFullTxPresent(txId: string): boolean {
+    const pn = this.findPostNode(txId);
+    return !!(pn && pn.isContentFiled());
+  }
+
   /**
    * Add a map of post metadata.
    * 
@@ -216,9 +222,11 @@ export class ForumCache {
       // Recurse to ensure our parent post is added
       // before we are.
       // replyTo is deprecated but still in use, this gets either format.
-      const replyTo = tags.replyTo0 ? decodeReplyToChain(tags).slice(-1)[0] : tags.replyTo
-      if (replyTo) {
-        existing = tryFindParentForReply(replyTo);
+      
+      const refTo = parseInt(tags.refToCount) > 0 ? getRefParent(tags) : undefined;
+      
+      if (refTo && tags.txType === 'P') {
+        existing = tryFindParentForReply(refTo);
         if (existing) {
           const newNode = existing.addReply(new CachedForumPost(id, tags))
           this.posts.push(newNode);
@@ -227,8 +235,8 @@ export class ForumCache {
         orphans[id] = tags;
         return;
       }
-      if (tags.editOf) {
-        existing = tryFindParentForEdit(tags.editOf)
+      if (refTo && tags.txType === 'PE') {
+        existing = tryFindParentForEdit(refTo)
         if (existing) {
           // Note we return the parent here. edits never have children...
           // so after adding an edit we return its parent. 
@@ -246,7 +254,12 @@ export class ForumCache {
     }
 
     Object.keys(posts).forEach(id => {
-      tryAdd(id)
+      try {
+        tryAdd(id)
+      } catch (e) {
+        console.error(e);
+        console.log('caught error adding post', posts[id]);
+      }
     })
 
     console.info(`Added ${Object.keys(posts).length}, ${Object.keys(orphans).length} orphans, cache posts: ${this.posts.length}`)  
@@ -281,7 +294,7 @@ export class ForumCache {
       if (txContent) {
         const tags = decodeTransactionTags(txContent.tx);
 
-        if (!tags['txType'] || tags['txType'] !== 'P') {
+        if (!tags['txType'] || (tags['txType'] !== 'P' && tags['txType'] !== 'PE')) {
           console.warn(tags);
           console.warn(`Not a post type, skipping, txType`);
           problems++;

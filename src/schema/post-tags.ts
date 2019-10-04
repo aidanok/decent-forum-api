@@ -51,7 +51,7 @@ export interface PostTags {
   //replyTo1?: string
   // ... etc ... //
 
-  replyTo?: string // deprecated. still being populated alongside the denormalized form. 
+  //replyTo?: string // deprecated. still being populated alongside the denormalized form. 
   
 
   /**
@@ -59,7 +59,7 @@ export interface PostTags {
    * 
    * MUST Have the same replyTo chain as the post it is editing.
    */
-  editOf?: string
+  //editOf?: string
 }
 
 

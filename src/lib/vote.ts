@@ -4,6 +4,7 @@ import { ForumVoteTags } from '../schema';
 import { getAppVersion } from './schema-version';
 import { generateDateTags } from '../schema/date-tags';
 import { addStandardTags } from './schema-utils';
+import { copyRefTagsAppend } from '../schema/ref-to-tags';
 
 const VOTE_COST = '0.1';
 
@@ -25,12 +26,8 @@ export async function voteOnPost(wallet: any, post: PostTreeNode, upVote: boolea
   
   const postTags = post.post.tags;
   
-  Object.keys(postTags).forEach(key => {
-    if (key.startsWith('replyTo') || key.startsWith('path') || key.startsWith('segment')) {
-      (tags as any)[key] = (postTags as any)[key];
-    }
-  })
-
+  copyRefTagsAppend(postTags, tags, post.id);
+  
   // Prepare and post TX 
   const target = (upVote && post.post.from) || undefined; 
 

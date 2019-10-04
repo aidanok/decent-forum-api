@@ -31,6 +31,8 @@ export interface DateTags {
   WD: string
   /** Timezone in ISO format, suitable for passing back into Date.parse() */
   TZ: string
+  /* Timestamp in ms */
+  timestamp: number 
 }
 
 
@@ -48,7 +50,8 @@ export function generateDateTags(date: Date): DateTags {
     mm: date.getUTCMinutes().toString(),
     WW: getWeekNumber(date)[1].toString(),
     WD: date.getUTCDay().toString(),
-    TZ: getISOTimezoneOffset(date).toString()
+    TZ: getISOTimezoneOffset(date).toString(),
+    timestamp: date.getTime(), // for future use.
   }
   return tags;
 }
