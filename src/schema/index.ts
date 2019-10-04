@@ -1,12 +1,4 @@
-import { PostTags } from './post-tags';
-import { PathTags } from './path-tags';
-import { DateTags } from './date-tags';
-import { VersionTags } from './version-tags';
-import { TxTypeTag } from './tx-type-tags';
-import { VoteTags } from './vote-tags';
 
-export type ForumVoteTags = VoteTags & PathTags & DateTags & VersionTags & TxTypeTag<'V'>
+import { ForumItemTags, ForumPostTags, ForumVoteTags } from './forum-item-tags';
 
-export type ForumPostTags = PostTags & PathTags & DateTags & VersionTags & TxTypeTag<'P'>
-
-export type ForumItemTags = ForumPostTags | ForumVoteTags
+export { ForumItemTags, ForumPostTags, ForumVoteTags }

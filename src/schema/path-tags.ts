@@ -8,10 +8,7 @@
  * We store the path in a de-normalized format to make querying easier
  * Along with the date tags this means we can quickly build a view of the
  * most active forums/votes for time period and section of the forum.
- * 
- * I'm not sure all these de-normalized forms are really needed, the full 
- * path only and segments would probably do the job.
- * 
+ *  
  */
 export interface PathTags {
   
@@ -32,7 +29,8 @@ export interface PathTags {
   path2?: string
 
 
-  // We also store the invidiual path segments. 
+  // We also store the invidiual path segments. I cant actually think
+  // any use for these except search...
 
   /**
    * The first segment of the forum path

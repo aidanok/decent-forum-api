@@ -47,8 +47,8 @@ export interface PostTags {
    *  
    */
 
-  replyTo0?: string
-  replyTo1?: string
+  //replyTo0?: string
+  //replyTo1?: string
   // ... etc ... //
 
   replyTo?: string // deprecated. still being populated alongside the denormalized form. 
