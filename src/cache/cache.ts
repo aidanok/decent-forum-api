@@ -5,7 +5,6 @@ import { ForumTreeNode } from './forum-tree-node';
 import { PostTreeNode } from './post-tree-node';
 import { ForumPostTags } from '../schema';
 import { TransactionContent } from './transaction-extra';
-import { decodeReplyToChain } from '../schema/post-tags';
 import { Tag } from 'arweave/web/lib/transaction';
 import { arweave } from '..';
 import { decodeTransactionTags } from './cache-utils'

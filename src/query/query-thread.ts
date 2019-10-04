@@ -5,7 +5,6 @@ import { DecodedTag, batchQueryTags, batchQueryTx, tagsArrayToObject } from '../
 import Transaction from 'arweave/web/lib/transaction';
 import { and, equals, or } from './arql';
 import { getAppVersion } from '../lib/schema-version';
-import { upgradeData } from './utils';
 import { equal } from 'assert';
 import { decodeTransactionTags } from '../cache/cache-utils';
 import { fillCache } from './query-utils';

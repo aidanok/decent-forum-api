@@ -62,34 +62,3 @@ export interface PostTags {
   //editOf?: string
 }
 
-
-export function decodeReplyToChain(tags: PostTags) {
-  const numbers = Object.keys(tags)
-    .filter(tname => tname.startsWith('replyTo') && tname.length > 7)
-    .map(tname => new Number(tname.substr(7)))
-    .sort();
-
-  const sorted: string[] = numbers.map(no => (<any>tags)[`replyTo${no}`])
-  return sorted; 
-}
-
-export function encodeReplyToChain(tags: PostTags, chain: string[]) {
-  for (var i = 0; i < chain.length; i++) {
-    (tags as any)[`replyTo${i}`] = chain[i];
-  }
-}
-
-
-// TODO: use + comapre
-export function verifyReplyToChain(tags: PostTags): boolean {
-  const numbers = Object.keys(tags)
-    .filter(tname => tname.startsWith('replyTo'))
-    .map(tname => new Number(tname.substr(7)))
-    .sort();
-  for (var i = 0; i < numbers.length; i++) {
-    if (i !== numbers[i] || typeof numbers[i] !== 'string' || (tags as any)[`replyTo${i}`].length < 4) {
-      return false;
-    }
-  }
-  return true;
-}

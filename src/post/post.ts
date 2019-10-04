@@ -1,38 +1,34 @@
-import { ForumPostTags } from '../schema/';
+import { ForumPostTags } from '../schema';
 import { VoteTags } from '../schema/vote-tags';
 import { arweave, PostTreeNode } from '..';
 import { PendingTxTracker } from '../cache/pending-tx-tracker';
-import { normalizeForumPathSegments, encodeForumPath } from './forum-paths';
-import { PathTags } from '../schema/path-tags';
-import { getAppVersion } from './schema-version';
-import { PostTags, decodeReplyToChain, encodeReplyToChain } from '../schema/post-tags';
+import { normalizeForumPathSegments, encodeForumPath } from '../lib/forum-paths';
+import { PathTags, copyPathTags } from '../schema/path-tags';
+import { getAppVersion } from '../lib/schema-version';
+import { PostTags } from '../schema/post-tags';
 import { generateDateTags } from '../schema/date-tags';
-import { addStandardTags } from './schema-utils';
+import { addStandardTags } from '../lib/schema-utils';
 import { ReferenceToTags, copyRefTagsAppend } from '../schema/ref-to-tags';
 
-export function buildPostTagsForReply(replyingTo: PostTreeNode, options?: Partial<PostTags>, fakeDate?: Date) { 
+export function buildPostTagsForReply(replyingTo: PostTreeNode, options?: Partial<PostTags>, fakeDate?: Date): ForumPostTags { 
   
-  let postTags: PostTags = {} as any;
+  let postTags: ForumPostTags = {} as any;
  
-  // Copy path segments as-is
-  Object.keys(replyingTo.post.tags).forEach(key => {
-    if (key.startsWith('path') || key.startsWith('segment')) {
-      (postTags as any)[key] = (replyingTo.post.tags as any)[key];
-    }
-  })
-
-  // Copy ref tags and append
-  
   const dateTags = generateDateTags(fakeDate || new Date());
+  const originalPost = replyingTo.getOriginalNode();
+  const wasToPe = replyingTo.isEdit 
 
   postTags =  Object.assign(
       postTags, 
       options, 
       dateTags,
       { DFV: getAppVersion(), txType: 'P' as 'P' },
-      { isReply: '1' }
-    );
-  copyRefTagsAppend(replyingTo.post.tags, postTags, replyingTo.id);
+      { wasToPe }
+  );
+
+  copyPathTags(replyingTo.post.tags, postTags);
+  copyRefTagsAppend(replyingTo.post.tags, postTags, originalPost.id);
+  
   return postTags;
 }
 
@@ -52,6 +48,7 @@ export function buildPostTags(pathSegement: string[], options: PostTags, fakeDat
     (pathTags as any)[`segment${i}`] = segments[i];
     (pathTags as any)[`path${i}`] = encodeForumPath(segments.slice(0, segments.length-i))
   }
+  pathTags.segCount = segments.length.toString();
 
   // Get date tags
   const dateTags = generateDateTags(fakeDate || new Date());

@@ -29,9 +29,6 @@ export interface PathTags {
   path2?: string
 
 
-  // We also store the invidiual path segments. I cant actually think
-  // any use for these except search...
-
   /**
    * The first segment of the forum path
    */
@@ -47,5 +44,19 @@ export interface PathTags {
    */ 
   segment2?: string
   
+  /**
+   * The number of path segments
+   */
+  segCount: string;
 
+
+}
+
+export function copyPathTags(source: any, target: any) {
+  Object.keys(source).forEach(key => {
+    if (key.startsWith('path') || key.startsWith('segment')) {
+      target[key] = source[key]
+    }
+  })
+  target.segCount = source.segCount;
 }

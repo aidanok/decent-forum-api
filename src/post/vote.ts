@@ -1,9 +1,9 @@
 import { VoteTags } from '../schema/vote-tags';
 import { PendingTxTracker, arweave, PostTreeNode } from '..';
 import { ForumVoteTags } from '../schema';
-import { getAppVersion } from './schema-version';
+import { getAppVersion } from '../lib/schema-version';
 import { generateDateTags } from '../schema/date-tags';
-import { addStandardTags } from './schema-utils';
+import { addStandardTags } from '../lib/schema-utils';
 import { copyRefTagsAppend } from '../schema/ref-to-tags';
 
 const VOTE_COST = '0.1';

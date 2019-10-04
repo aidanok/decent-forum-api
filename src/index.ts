@@ -1,7 +1,7 @@
 
 import { arweave } from './lib/permaweb';
-import { postPost, buildPostTags } from './lib/post';
-import { voteOnPost } from './lib/vote';
+import { postPost, buildPostTags, buildPostTagsForReply } from './post/post';
+import { voteOnPost } from './post/vote';
 import { ForumCache } from './cache/cache';
 import { ForumTreeNode } from "./cache/forum-tree-node";
 import { CachedForumVote } from "./cache/cached-forum-vote";
@@ -21,6 +21,7 @@ export {
   arweave, 
   postPost, 
   buildPostTags, 
+  buildPostTagsForReply,
   voteOnPost,
   queryForum,
   queryThreadFromRoot,
