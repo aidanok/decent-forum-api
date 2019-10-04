@@ -4,6 +4,11 @@ import { arweave } from '../lib/permaweb';
 const MIN_POLL_TIME = 60*1000*2;
 const MAX_POLL_TIME = 60*1000*4;
 
+// For dev, and for when we deep link to a forum, 
+// we want to give priority to other requests so have
+// a delay before we start tailing blocks.
+const STARTUP_DELAY = 60*1000*5;
+
 const randomPollTime = () => 
   new Promise(res => setTimeout(res, Math.random() * (MAX_POLL_TIME - MIN_POLL_TIME) + MIN_POLL_TIME))
 
@@ -52,8 +57,7 @@ export class BlockWatcher {
   private instance = ++instanceCount; // debug helper
 
   constructor() {
-    this.loop();
-    console.log('[BlockWatcher] started')
+    this.start();
   }
 
   public subscribe(handler: BlockWatcherSubscriber): number {
@@ -74,6 +78,12 @@ export class BlockWatcher {
       Object.values(this.subscribers).findIndex(x => x === sub)
   
     delete this.subscribers[idx];  
+  }
+
+  private async start() {
+    await new Promise(res => setTimeout(res, STARTUP_DELAY));
+    console.log('[BlockWatcher] started')
+    this.loop();
   }
 
   private async loop() {
