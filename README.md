@@ -27,9 +27,10 @@ The schema for the data format is located under [src/schema](src/schema)
 We encode data in tags and data specifically to allow querying with less requests and do something like range queries on dates. For example, we store the week number of the year, so can do a simple OR() of 3 values to query
 data from the last three weeks. We also encode a numeric timestamp for future use. 
 
-Another example of encoding data is replyTo (for post threading). The naive implementation just has one tag that points to it's parent post. To query a thread 5 levels deep you then need to then do 5 recursive/sequential queries, instead if you encode it along the lines of: `replyTo0, replyTo1, ... replyToN` & `replyDepth` you can construct a single query to get the first 3 levels of a thread, or the next 5 levels of some thread at some depth, etc. 
+Another example of encoding data is replyTo (for post threading). The naive implementation just has one tag that points to it's parent post. To query a thread 5 levels deep you then need to then do 5 recursive/sequential queries, instead if you encode it along the lines of: `replyTo0, replyTo1, ... replyToN` & `replyDepth` you can construct a single query to get the first 3 levels of a thread, or the next 5 levels of some reply at some depth, etc. 
 
-See [src/schema/ref-to-tags.ts](src/schema/ref-to-tags.ts) Which is what we use.
+See [src/schema/ref-to-tags.ts](src/schema/ref-to-tags.ts) Which is what we use, its a general purpose purpose way
+of encoding a tree and being able to query it at any point to N depth with one ArQL query.
 
 
 At the moment the schema for posts only supports plaintext posts. Some more formats would be good.
