@@ -1,25 +1,41 @@
 
 
 /**
- * Like path tags, this is more an example than 
+ * 
+ * This is more an example than 
  * a full interface, since the chain can be any 
- * amount of levels deep.
+ * amount of levels deep, might be a better way to type it. 
+ *  
+ * This is a general purpose structure for tags to encode a tree structure
+ * that you are able to query at some point (a txid) and with a depth
+ * limit. The 'count' field is imporant as it allows us to limit the 
+ * depth we query the tree.
  * 
- * This is used for posts and votes, any items related to a thread.  
+ * To query a tree from the root, say 3 levels deep, we query: 
  * 
- * In the case of a reply, edit, or vote, 
- * The last refTo in the chain, will be the parent. 
+ * refTo0='someId  AND ( refTocount=1 OR refToCount = 2 OR refToCount = 3 ) 
  * 
- * Edits will have an isEdit flag set, votes or replies can 
- * reference Edits as their parents, and its equivilent to 
- * referencing the edits 'parent' 
+ * (The ORs are needed since we only have the equals operator, ideally it just be LT 4)
  * 
- * // Root post 
+ * To query a subtree, for example at depth 3 to 4+N we just query: 
+ * 
+ * (refTo0='rootId' AND refTo1='parent1' AND refTo2='someid')  AND ( refTocount=4+1 OR ... refToCount=4+N ) 
+ * 
+ * The ANDs in the first part are to ensure we dont get data from a different subtree that 
+ * also happen to have refTo2='someId'.  
+ * 
+ * We could get rid of the ANDs by encoding the chain as a single tag. as well as the individual refToN tags
+ * so, instead of the first set of ANDs we query: 
+ * 
+ * (refChain="tx1,tx2,tx3") AND ( refToCount=4+1 OR refToCount=4+2 ... )
+ * 
+ * Its unlikley to be worth the extra storage, since it should be v. cheap for nodes to AND/OR operations anyway.
+ * 
+ * // Root post / object
  * {
  *  refTo0: '' // NONE
  *  ... 
  * } 
- * 
  * 
  * 
  * // An edit of the root post. 
@@ -32,7 +48,7 @@
  * {
  *   txType: 'V'
  *   ref0: 'txRootId' <-- thread root
- *   // wasPE?: peId  dont really need it. info only. 
+ *   // wasPE?: peId  app specific, info only. 
  * },
  * 
  * // A reply to the root post. 
@@ -62,11 +78,11 @@
  *   id: 'peditId'
  *   txType: 'PE'
  *   ref0: 'txRootId' <-- thread root
- *   ref1: 'reply1' <-- parents parent
- *   ref2: 'reply2' <-- parent 
+ *   ref1: 'reply1' <-- 
+ *   ref2: 'reply2' <-- parent parent
  *   ref3: 'reply3' <-- parent 
  * }
- * // A vote on that 
+ * // A vote on that edit
  * { 
  *   id: vid,
  *   txType: 'V' 
@@ -74,7 +90,7 @@
  *   ref1: 'reply1' <-- parents parent
  *   ref2: 'reply2' <-- parent 
  *   ref3: 'reply3' <-- parent 
- *   // wasOnPe: peditId 
+ *   // wasOnPe: peditId  // app spefic, informational only.
  * }
  * 
  * // A reply to that edit 
@@ -84,8 +100,9 @@
  *   ref1: 'reply1' <-- parents parent
  *   ref2: 'reply2' <-- parent 
  *   ref3: 'reply3' <-- parent 
- *   // wasOnPe: peditId // info only.
+ *   // wasOnPe: peditId // app specific, informationl only.
  * }
+ * 
  * 
  * 
  */
