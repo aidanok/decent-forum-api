@@ -133,7 +133,7 @@ export class BlockWatcher {
     this.blocks = this.blocks.slice(0, BLOCKS_TO_SYNC);
   
     if (i > 0) {
-      console.log(`[BlockWatcher] Synced ${i} blocks. ${missed ? ' ! - Some blocks were missed - !' : ''}`);
+      console.info(`[BlockWatcher] Synced ${i} blocks. ${missed ? ' ! - Some blocks were missed - !' : ''}`);
       this.blocks.forEach(x => {
         console.log(`[BlockWatcher] ${x.hash.substr(0, 5)} (${x.block.height}) => ${x.block.previous_block.substr(0, 5)}`);
       })

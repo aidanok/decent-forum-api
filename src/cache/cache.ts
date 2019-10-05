@@ -1,14 +1,13 @@
 import { decodeForumPath } from '../lib/forum-paths';
-import { CachedForumPost } from './cached-forum-post';
-import { CachedForumVote } from './cached-forum-vote';
+import { ForumPost } from './forum-post';
 import { ForumTreeNode } from './forum-tree-node';
 import { PostTreeNode } from './post-tree-node';
 import { ForumPostTags } from '../schema';
-import { TransactionContent } from './transaction-extra';
 import { Tag } from 'arweave/web/lib/transaction';
 import { arweave } from '..';
 import { decodeTransactionTags } from './cache-utils'
-import { getRefParent } from '../schema/ref-to-tags';
+import { getRefParent, isRefRoot } from '../schema/ref-to-tags';
+import { AllTransactionInfo } from "./all-transaction-info";
 
 /**
  * A client side cache of forums/posts/votes
@@ -78,7 +77,7 @@ export class ForumCache {
    * 
    * The Nodes referenced here are same objects as stored in the ForumTree.
    */
-  private posts: PostTreeNode[] = []
+  private posts: Record<string, PostTreeNode> = {}
 
   /**
    * All votes, just record their ids.
@@ -123,10 +122,13 @@ export class ForumCache {
   /**
    * Finds a PostTreeNode by txId
    * 
+   * We return null for Vues sake, though it does make 
+   * for some ugly need for type annotation elsewhere. 
+   * 
    * @param txId 
    */
   public findPostNode(txId: string): PostTreeNode | null {
-    return this.posts.find(x => x.post.id === txId) || null;
+    return this.posts[txId] || null;
   }
 
   public isVoteCounted(txId: string): boolean {
@@ -154,56 +156,50 @@ export class ForumCache {
    * need to declared inside the function, to close over the posts
    * and orphans objects while recursing. 
    * 
-   * TODO: The naming of 'isEditFor / isReplyTo' is unclear and they should
-   * be top level instance methods.
-   * 
    * TODO: Ensure malformed/corrupt data is try catched and discarded and doesnt
-   * stop processing.
+   * stop processing.  
    * 
-   * TODO: Ensure validate against schema (perhaps not here though.)
+   * TODO: Ensure validate against schema ( not here though.)
+   * We do this a bit (for eg check edit owner is same as original owner), 
+   * but it really needs to be refactored into a distinct step for clarity and ease of auditing, 
+   * and made more comprehensive. 
+   * 
    * 
    * @param posts 
    */
-  public addPostsMetadata(posts: Record<string, ForumPostTags>): Record<string, ForumPostTags> {
+  public addPosts(posts: Record<string, AllTransactionInfo>): Record<string, AllTransactionInfo> {
 
-    const orphans: Record<string, ForumPostTags> = {}
-
-    // Edits MUST reference the original post id
-    const isEditOf = (node: PostTreeNode, id: string) => 
-      node.post.id === id 
-    ;
-    
-    // Replies can reference the id of any edit. 
-    const isReplyTo = (node: PostTreeNode, id: string) =>
-      node.id === id || !!(node.edits && node.edits.find(e => e.id === id))
-    ;
-
-    const getFromCache = (id: string): PostTreeNode | undefined =>
-      this.posts.find(x => x.id === id)
-    ;
+    const orphans: Record<string, AllTransactionInfo> = {}
 
     // try* functions: set of mutually recursive functions that will either 
-    // add the post in the correct place, or place it in the orphans list.
-
+    // add the post in the correct place in the tree, or place it in the orphans 
+    // list that is returned to the caller.
+    
+    // we need to do it this way because posts can be given to the cache in any
+    // order, ie, we may process a reply to a post before we process the original
+    // post. This will check both the posts already in the cache, and the 
+    // posts passed in to find a parent. We could maybe just sort the posts 
+    // before processing but im not sure that is any easier.  
     
     const tryFindParentForEdit = (parentId: string): PostTreeNode | undefined => {
       let existing = posts[parentId] && tryAdd(parentId);
       if (!existing) {
-        existing = this.posts.find(node => isEditOf(node, parentId));
+        existing = this.posts[parentId];
       }
       
       if (!existing) {
         // orphan :(
-        orphans[parentId] = posts[parentId]; 
+        orphans[parentId] = posts[parentId]
         return; 
       }
+
       return existing
     }
 
     const tryFindParentForReply = (parentId: string): PostTreeNode | undefined => {
       let parent = posts[parentId] && tryAdd(parentId);
       if (!parent) {
-        parent = this.posts.find(node => isReplyTo(node, parentId));
+        parent = this.posts[parentId];
       }
       if (!parent) {
         // orphan :(
@@ -215,48 +211,70 @@ export class ForumCache {
     
     const tryAdd = (id: string): PostTreeNode | undefined | null => {
       
-      let existing = getFromCache(id)
+      let existing: PostTreeNode | null | undefined = this.findPostNode(id)
       
       if (existing) {
         return existing;
       }
-      console.log(`Trying to add to cache ${id}`);
-      const tags = posts[id];
+      const tags = posts[id].tags;
       if (!tags) {
         throw new Error('No post tags provided!');
       }
 
       // Recurse to ensure our parent post is added
       // before we are.
-      // replyTo is deprecated but still in use, this gets either format.
-      
-      const refTo = parseInt(tags.refToCount) > 0 ? getRefParent(tags) : undefined;
+
+      const isRoot = isRefRoot(tags);
+      const refTo = !isRoot ? getRefParent(tags) : undefined;
       
       if (refTo && tags.txType === 'P') {
         existing = tryFindParentForReply(refTo);
         if (existing) {
-          const newNode = existing.addReply(new CachedForumPost(id, tags))
-          this.posts.push(newNode);
+          const forumPost = new ForumPost(
+            id, 
+            tags as any, 
+            posts[id].ownerAddress, 
+            posts[id].tx.get('data', { decode: true, string: true })
+          )
+          const newNode = existing.addReply(forumPost, { isPendingTx: posts[id].isPendingTx })
+          this.posts[id] = newNode;
           return newNode;
         }
-        orphans[id] = tags;
+        orphans[id] = posts[id];
         return;
       }
       if (refTo && tags.txType === 'PE') {
         existing = tryFindParentForEdit(refTo)
         if (existing) {
-          // Note we return the parent here. edits never have children...
-          // so after adding an edit we return its parent. 
-          // we maybe should change this for consistency.
-          const newNode = existing.addEdit(new CachedForumPost(id, tags));
-          this.posts.push(newNode);
-          return newNode.parent;
+          
+          // Validation, 
+          if (existing.post.from !== posts[id].ownerAddress) {
+            console.warn(existing.post.from);
+            console.warn(posts[id].ownerAddress);
+            throw new Error('Edit is not from the owner'); 
+          }
+          
+          const forumPost = new ForumPost(
+            id, 
+            tags as any, 
+            posts[id].ownerAddress, 
+            posts[id].tx.get('data', { decode: true, string: true })
+          )
+          
+          const newNode = existing.addEdit(forumPost, { isPendingTx: posts[id].isPendingTx} );
+
+          this.posts[id] = newNode;
+          
+          // since it was an edit, we return its parent in this case.
+          return newNode.parent; 
         }
-        orphans[id] = tags;
+
+        // Nowhere to for it go, put it in orphans list :(
+        orphans[id] = posts[id];
         return; 
       }
       
-      return this.addTopLevelPost(id, tags)
+      return this.addTopLevelPost(id, posts[id])
       
     }
 
@@ -265,7 +283,7 @@ export class ForumCache {
         tryAdd(id)
       } catch (e) {
         console.error(e);
-        console.log('caught error adding post', posts[id]);
+        console.error('caught error adding post', posts[id]);
       }
     })
 
@@ -277,97 +295,42 @@ export class ForumCache {
     return orphans;
   }
 
-  /**
-   * Update the PostTreeNode with the content of the post. 
-   * The Post & Tags MUST have been added previously using addPostsMetadata.
-   * 
-   * Currently this 'content' also includes some things we would
-   * consider metadata, ('from'/'ownerAddress' & isTxPending ) But it should really just be the
-   * tx data.
-   * 
-   * This method can be used to add a pending tx to the cache, or to confirm that 
-   * a tx has been minded. Possibly should just use a dedicated method instead.
-   * 
-   * @param content 
-   */
-  public addPostsContent(content: Record<string, TransactionContent>) {
-    let count = 0, problems = 0, total = 0;
-    Object.keys(content).forEach(txId => {
-      const txContent = content[txId];
-      total++;
-      
-      // Just check this is really a post, skip otherwise.
-     
-      if (txContent) {
-        const tags = decodeTransactionTags(txContent.tx);
-
-        if (!tags['txType'] || (tags['txType'] !== 'P' && tags['txType'] !== 'PE')) {
-          console.warn(tags);
-          console.warn(`Not a post type, skipping, txType`);
-          problems++;
-          return;
-        }
-      }
-      
-      
-      const postNode = this.findPostNode(txId);
-      if (postNode && !postNode.isContentFiled() && !postNode.isPendingTx) {
-        
-        if (!txContent) {
-          // mark as problem.
-          postNode.contentProblem = 'Failed to load (Unknown)';
-          problems++;
-        } else {
-          postNode.post.content = txContent.tx.get('data', { decode: true, string: true });
-          postNode.post.from = txContent.extra.ownerAddress;
-          postNode.isPendingTx = txContent.extra.isPendingTx;
-          count++;
-        }
-      }
-    })
-    console.log(`[Cache] Added ${count} post's content, with ${problems} missing. (${total})`);
-  }
-
-  public addVotesContent(content: Record<string, TransactionContent>) {
-    console.log(`Got ${Object.keys(content).length} votes to add to cache`);
+  public addVotes(content: Record<string, AllTransactionInfo>) {
+    console.info(`Got ${Object.keys(content).length} votes to add to cache`);
+    
     const requiredAmt = 0.1;
+
     Object.keys(content).forEach(txId => {
-      const txContent = content[txId];
-      if (!txContent) {
-        console.warn(`Got no data in votes content, skipping`);
-        return;
-      }
-      const tags = decodeTransactionTags(txContent.tx);
-      console.log(tags);
-      console.log(`Checking vote`);
+      
+      const info = content[txId];
+      const tags = info.tags
+
       if (tags['txType'] !== 'V' && !tags['refToCount'] && !tags['voteType']) {
         // not a vote, ignore it
         console.warn(tags);
-        console.warn(`Ignorning non-vote passed to addVotesContent`);
+        console.warn(`Ignorning non-vote passed to addVotes`);
         return;
       }
 
-      const from = txContent.extra.ownerAddress;
+      const from = info.ownerAddress;
       // Now just verify the amount, find the post, verify its not 
       // the owner and the user didnt vote before. 
-      const txQty = new Number(arweave.ar.winstonToAr(txContent.tx.quantity));
-      const txReward = new Number(arweave.ar.winstonToAr(txContent.tx.reward));
+      const txQty = new Number(arweave.ar.winstonToAr(info.tx.quantity));
+      const txReward = new Number(arweave.ar.winstonToAr(info.tx.reward));
       const upVote = tags['voteType'] === '+'; 
       const voteFor = getRefParent(tags as any);
       
-      // VALIDATE  
-
+      // VALIDATE 
       const postNode = this.findPostNode(voteFor);
-      console.log(`Found for vote ${voteFor}? ${!!postNode}`);
       
       if (!postNode) {
         console.warn('Vote for a post we dont have, ignoring');
-        return; 
+        return;
       }
       
       // We can record that we HAVE this vote now, regardless of whether its valid or 
       // not, this will save us querying it again.
-      this.votes.push(txContent.tx.id);
+      this.votes.push(info.tx.id);
 
       if (upVote && txQty < requiredAmt) {
         console.warn('upVote doesnt have the required amount, ignoring');
@@ -400,36 +363,66 @@ export class ForumCache {
     })
   }
 
-  public markPendingTxAsFailed(id: string) {
-    // remove post, take it out of the tree.
-
-    // pending txs that fail could present a problem 
-    // if a subsequent Tx references them and that gets 
-    // mined but the original failed. This needs to be 
-    // taken care of elsewhere (dont allow actions that do this)
-    // Given that: we should remove all descendents aswell, as
-    // they are invalid.
-
-    // TODO: XXX implement this.
+  public confirmPendingItem(info: AllTransactionInfo) {
+    if (info.tags['txType'] === 'P' || info.tags['txType'] === 'PE') {
+      // find post node 
+      const postNode = this.findPostNode(info.tx.id);
+      if (!postNode) {
+        console.warn(`Tried to confirm a pending TX that we dont have: ${info.tx.id}`);
+        return; 
+      }
+      postNode.isPendingTx = false; 
+    }
+    if (info.tags['txType'] === 'V') {
+      // We dont need to do anything, we dont store the pending status of votes.
+    }
   }
 
-  private addTopLevelPost(id: string, tags: ForumPostTags): PostTreeNode | undefined {
+  /**
+   * Called when a TX that was accepted into the mempool and 
+   * assumed to be mined soon, was not actually mined. opposite of 
+   * confirmPendingItem. 
+   * 
+   * @param info 
+   */
+  public denyPendingItem(info: AllTransactionInfo) {
+    // TODO. This *should* happen rarely, but it does happen. 
+    // Its not particularaly important because on app reload 
+    // the cache is lost anyway, 
+
+    // If its vote, we can go in and decrement the counter, 
+    // If its a post, we can go in and remove it. The caller 
+    // can keep tracking of failed TXs to alert the user.  
+
+    // We need to figure out (in PendingTxTracker) when exactly
+    // to fail a Tx, since you can get 404s for quite a while
+    // during propogation and then have the TX go through.
+  }
+
+  private addTopLevelPost(id: string, tx: AllTransactionInfo): PostTreeNode | undefined {
     try { 
-      const segments = decodeForumPath(tags.path0);
+    
+      const segments = decodeForumPath(tx.tags['path0']);
       
       // Descend and create nodes as needed to get to the correct forum.
       let forumNode = this.forums;
       for (let i = 0; i < segments.length; i++) {
         forumNode = forumNode.getChildAlways(segments[i]);
       }
-      const newNode = new PostTreeNode(id, forumNode, new CachedForumPost(id, tags));
+      const forumPost = new ForumPost(
+        id, 
+        tx.tags as any, 
+        tx.ownerAddress, 
+        tx.tx.get('data', { decode: true, string: true })
+      )
+      const newNode = new PostTreeNode(id, forumNode, forumPost);
       forumNode.posts[id] = newNode;
-      this.posts.push(newNode);
+      this.posts[id] = newNode;
       return newNode;
     } catch (e) {
       // Some unexpected error, probably malformed data. 
       console.error(e);
-      console.log(tags);
+      console.log(tx);
       console.error(`Unexpected error adding top level post${id} to cache, discarding item`);
       return;
     }

@@ -75,7 +75,7 @@ export async function voteOnPost(wallet: any, post: PostTreeNode, upVote: boolea
   const resp = await arweave.transactions.post(tx);
   
   if (resp.status == 200) {
-    txTracker && txTracker.addPendingVoteTx(tx, tags as ForumVoteTags);
+    txTracker && await txTracker.addPendingVoteTx(tx, tags as ForumVoteTags);
     console.log(`Vote submitted as tx: ${tx.id}`);
     return tx.id;
   } else {

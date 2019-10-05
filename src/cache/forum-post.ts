@@ -1,7 +1,11 @@
 import { ForumPostTags } from '../schema'
 import { dateTagsToDate } from '../schema/date-tags'
 
-export class CachedForumPost {
+/**
+ * The actual post data. Held in a PostTreeNode 
+ * 
+ */
+export class ForumPost {
   
   /**
    * This is the client set date, so it cannot be 
@@ -14,10 +18,10 @@ export class CachedForumPost {
   constructor(
     public id: string,
     public tags: ForumPostTags,
+    public from: string,
+    public content: string,
     public upVotes = 0,
     public downVotes = 0,
-    public content: string | null = null,
-    public from: string | null = null
   ) {
     this.date = dateTagsToDate(tags)
   }

@@ -1,14 +1,7 @@
 import { ForumCache, PostTreeNode, arweave } from '..';
-import { ForumPostTags, ForumVoteTags } from '../schema';
-import { TransactionContent, TransactionExtra } from '../cache/transaction-extra';
-import { DecodedTag, batchQueryTags, batchQueryTx, tagsArrayToObject } from '../lib/permaweb';
-import Transaction from 'arweave/web/lib/transaction';
 import { and, equals, or } from './arql';
 import { getAppVersion } from '../lib/schema-version';
-import { equal } from 'assert';
-import { decodeTransactionTags } from '../cache/cache-utils';
 import { fillCache } from './query-utils';
-
 
 /**
  * Query a single thread, from a root post TX.
@@ -28,12 +21,9 @@ export async function queryThread(txId: string, cache?: ForumCache, depth: numbe
   // Construct a temporary cache so we can use it to build the thread tree structure. 
   if (!cache) cache = new ForumCache();
 
-  console.log(`Querying thread ${txId} with depth: ${depth}`)
-  // Go ahead and query the txIds for all posts and votes in this thread. 
+  console.info(`Querying thread ${txId} with depth: ${depth}`)
   
-  // We should ask the cache here before we do anything. 
-  // We at least ask if it has the root.
-  const rootNode = cache.findPostNode(txId);
+  // Go ahead and query the txIds for all posts and votes in this thread. 
   
   const query = and(
       equals('DFV', getAppVersion()),

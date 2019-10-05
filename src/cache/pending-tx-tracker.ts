@@ -1,10 +1,11 @@
 import Transaction from 'arweave/web/lib/transaction';
 import { ForumCache, arweave } from '..';
 import { ForumPostTags, ForumItemTags, ForumVoteTags } from '../schema';
-import { TransactionExtra } from './transaction-extra';
 import { AxiosResponse } from 'axios';
 import { BlockWatcher, BlockWatcherSubscriber } from '../block-watcher/block-watcher';
 import { VoteTags } from '../schema/vote-tags';
+import { AllTransactionInfo } from './all-transaction-info';
+import { decodeTransactionTags } from './cache-utils';
 
 // Poll some random time between 60 and 120 seconds.
 
@@ -38,55 +39,41 @@ const MAX_ERRORS = 3;
  * TODO: Use BlockWatcher and only poll when we missed blocks 
  */
 
- type PendingTx = {
-   countErrors: number,
-
-   // Keep these around to give to cache later on confirm,
-   // and to maybe put into a failed list for user feedback.
-   tx: Transaction,
-   tags: ForumItemTags
-   extra: TransactionExtra,
- }
 
 export class PendingTxTracker {
 
-  pending: Record<string, PendingTx> = {};
+  pending: Record<string, AllTransactionInfo & { countErrors: number }> = {};
 
   constructor(private cache: ForumCache, private blockWatcher: BlockWatcher) {
-    console.log(`[TXTRACKER] hello`);
     this.loop();
   }
 
   public async addPendingVoteTx(tx: Transaction, tags: ForumVoteTags) {
-    const extra: TransactionExtra = {
+    
+    const allInfo: AllTransactionInfo = {
       isPendingTx: true,
-      ownerAddress: await arweave.wallets.ownerToAddress(tx.owner),
-      txType: tags.txType,
+      ownerAddress: await arweave.wallets.ownerToAddress(tx.owner), 
+      tx, 
+      tags: decodeTransactionTags(tx)
     }
-    this.cache.addVotesContent({[tx.id]: { tx, extra }})
-    this.pending[tx.id] = {
-      countErrors: 0,
-      tx,
-      tags,
-      extra,
-    }
+    this.cache.addVotes({[tx.id]: allInfo});
+    this.pending[tx.id] = Object.assign({ countErrors: 0}, allInfo);
   }
 
   public async addPendingPostTx(tx: Transaction, tags: ForumPostTags) {
-    const extra: TransactionExtra = {
+    
+    
+    const allInfo: AllTransactionInfo = {
       isPendingTx: true,
-      ownerAddress: await arweave.wallets.ownerToAddress(tx.owner),
-      txType: tags.txType,
+      ownerAddress: await arweave.wallets.ownerToAddress(tx.owner), 
+      tx, 
+      tags: decodeTransactionTags(tx)
     }
-    this.cache.addPostsMetadata({ [tx.id]: tags });
-    this.cache.addPostsContent({[tx.id]: { tx, extra }});
-    this.pending[tx.id] = {
-      countErrors: 0,
-      tx,
-      tags,
-      extra,
-    }
-    console.log(`[PendingTxTracker] Started tracking TX: ${tx.id}`);
+
+    this.cache.addPosts({ [tx.id]: allInfo });
+    this.pending[tx.id] = Object.assign({ countErrors: 0}, allInfo);
+    
+    console.info(`[PendingTxTracker] Started tracking TX: ${tx.id}`);
   }
 
   private async loop() {
@@ -129,32 +116,14 @@ export class PendingTxTracker {
       this.pending[txId].countErrors++;
       // TODO: XXX actually mark the TX as failed and remove from cache.
     }
-    console.log(`[PendingTXTracker] TX ${txId} is still pending (${response && response.status})`)
+    console.info(`[PendingTXTracker] TX ${txId} is still pending (${response && response.status})`)
   }
 
-  private confirmTx(txId: string) {
-    const p = this.pending[txId];
-    console.log(`[PendingTXTracker] Pending TX: ${txId} CONFIRMED`);
+  private async confirmTx(txId: string) {
+    const info = this.pending[txId];
+    console.info(`[PendingTXTracker] Pending TX: ${txId} CONFIRMED`);
     delete this.pending[txId];
     console.info(`[PendingTXTracker] Pending TX: ${txId} CONFIRMED and cache updated.`);
-
-    if (p.extra.txType === 'P') {
-      this.cache.addPostsContent({
-        [txId]: {
-          tx: p.tx,
-          extra: Object.assign({}, p.extra, { isPendingTx: false }),
-        }
-      })
-    }
-
-    if (p.extra.txType === 'V') {
-      this.cache.addVotesContent({
-        [txId]: {
-          tx: p.tx,
-          extra: Object.assign({}, p.extra, { isPendingTx: false }),
-        }
-      })
-    }
-    
+    this.cache.confirmPendingItem(info);
   }
 }

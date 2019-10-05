@@ -1,53 +1,14 @@
-import { TransactionContent, TransactionExtra } from "../cache/transaction-extra";
 import Transaction, { Tag } from "arweave/web/lib/transaction";
 import { arweave, ForumCache } from "..";
-import { ForumPostTags } from '../schema';
 import { batchQueryTx } from '../lib/permaweb';
 import { decodeTransactionTags } from '../cache/cache-utils';
-
-/**
- * We decode the transaction into this structure to give it to the cache, 
- * Includes some redundancy for compatability purposes. 
- * The cache does not  do any async operations, so we need to do anything async 
- * before giving it data (convert owner to ownerAddress)
- * Its also useful to just immediately decode the tags.
- * 
- */
-export interface AllTransactionInfo {
-  
-  /**
-   * The decoded tags
-   */
-  tags: Record<string, string>
-  
-  /**
-   * The raw TX
-   */
-  tx: Transaction
-  
-  /**
-   * For compat, ignore.
-   */
-  extra: TransactionExtra 
-  
-  /**
-   * The from wallet address 
-   */
-  ownerAddress: string
-  
-  /**
-   * Flag indicating whether this TX is pending in the mempool or it was the result of a query.
-   */ 
-  isPendingTx: boolean 
-}
-
+import { AllTransactionInfo } from '../cache/all-transaction-info';
 
 export async function fillCache(txIds: string[], cache: ForumCache) {
 
   // Setup some maps we will sort the results into. 
-  const postMetadata: Record<string, ForumPostTags> = {};
-  const postContents: Record<string, TransactionContent> = {};
-  const voteContents: Record<string, TransactionContent> = {};
+  const postContents: Record<string, AllTransactionInfo> = {};
+  const voteContents: Record<string, AllTransactionInfo> = {};
   
   const origLen = txIds.length;
   // Filter out things we dont need to query for. 
@@ -72,16 +33,10 @@ export async function fillCache(txIds: string[], cache: ForumCache) {
   const txsFull = await Promise.all(
     txs.map(async txInfo => {
       const tags = decodeTransactionTags(txInfo.tx);
-      const extra: TransactionExtra = {
-        ownerAddress: await arweave.wallets.ownerToAddress(txInfo.tx.owner),
-        isPendingTx: false,
-        txType: tags['txType']
-      }
-      const allInfo: AllTransactionInfo = {        
-        extra,
+      const allInfo: AllTransactionInfo = {
         tags,
         tx: txInfo.tx,
-        ownerAddress: extra.ownerAddress,
+        ownerAddress: await arweave.wallets.ownerToAddress(txInfo.tx.owner),
         isPendingTx: false
       }
       return allInfo;
@@ -90,18 +45,15 @@ export async function fillCache(txIds: string[], cache: ForumCache) {
   
   for (let i = 0; i < txsFull.length; i++) {
     if (txsFull[i].tags['txType'] === 'P') {
-      postMetadata[txsFull[i].tx.id] = txsFull[i].tags as any;
       postContents[txsFull[i].tx.id] = txsFull[i];
     }
     if (txsFull[i].tags['txType'] === 'PE') {
-      postMetadata[txsFull[i].tx.id] = txsFull[i].tags as any;
       postContents[txsFull[i].tx.id] = txsFull[i];
     }
     if (txsFull[i].tags['txType'] === 'V') {
       voteContents[txsFull[i].tx.id] = txsFull[i];
     }
   }
-  cache.addPostsMetadata(postMetadata);
-  cache.addPostsContent(postContents);
-  cache.addVotesContent(voteContents);
+  cache.addPosts(postContents);
+  cache.addVotes(voteContents);
 }

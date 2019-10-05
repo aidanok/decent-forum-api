@@ -12,24 +12,52 @@ import { ReferenceToTags, copyRefTagsAppend } from '../schema/ref-to-tags';
 
 export function buildPostTagsForReply(replyingTo: PostTreeNode, options?: Partial<PostTags>, fakeDate?: Date): ForumPostTags { 
   
+  const refToNode = replyingTo.getOriginalNode();
+  
   let postTags: ForumPostTags = {} as any;
  
   const dateTags = generateDateTags(fakeDate || new Date());
-  const originalPost = replyingTo.getOriginalNode();
-  const wasToPe = replyingTo.isEdit 
+  
+  // Informational, which edit was this replying to.
+  // does not affect tree / refTo tags, so we use the passed in nodes id, not refToNode. 
+  const wasToPe = refToNode !== replyingTo ? replyingTo.id : undefined
 
-  postTags =  Object.assign(
-      postTags, 
-      options, 
-      dateTags,
-      { DFV: getAppVersion(), txType: 'P' as 'P' },
-      { wasToPe }
+  Object.assign(
+    postTags, 
+    options,
+    dateTags,
+    { txType: 'P' },
+    wasToPe && { wasToPe }
   );
 
-  copyPathTags(replyingTo.post.tags, postTags);
-  copyRefTagsAppend(replyingTo.post.tags, postTags, originalPost.id);
+  addStandardTags(postTags);
+  copyPathTags(refToNode.post.tags, postTags);
+  copyRefTagsAppend(refToNode.post.tags, postTags, refToNode.id);
   
   return postTags;
+}
+
+export function buildPostTagsForEdit(editOf: PostTreeNode, options?: Partial<PostTags>): ForumPostTags {
+  const refToNode = editOf.getOriginalNode();
+  let postEditTags = {} as ForumPostTags;
+  
+  // Informational, which edit was this an edit of.  
+  const wasToPe = editOf !== refToNode ? editOf.id : undefined
+
+  const dateTags = generateDateTags(new Date());
+
+  Object.assign(
+    postEditTags, 
+    options, 
+    dateTags,
+    { txType: 'PE' },
+    wasToPe && { wasToPe }
+  );
+
+  addStandardTags(postEditTags);
+  copyPathTags(refToNode.post.tags, postEditTags);
+  copyRefTagsAppend(refToNode.post.tags, postEditTags, refToNode.id)
+  return postEditTags;
 }
 
 /**
@@ -41,6 +69,10 @@ export function buildPostTagsForReply(replyingTo: PostTreeNode, options?: Partia
  */
 export function buildPostTags(pathSegement: string[], options: PostTags, fakeDate?: Date): ForumPostTags {
   
+  if (pathSegement.length < 1) {
+    throw new Error('Cannot post to empty path');
+  }
+
   const segments = normalizeForumPathSegments(pathSegement);
   const pathTags: PathTags = {} as any;
 
@@ -76,6 +108,10 @@ export async function postPost(wallet: any, postData: string | Buffer, tags: For
   console.info(postData)
   console.info('^^ Posting with Data ^^')
 
+  if (!tags.path0 || parseInt(tags.segCount) < 1) {
+    throw new Error('Cannot post to empty path');
+  }
+
   const [ anchor, tx ] = await Promise.all([
     arweave.api.get('/tx_anchor').then(x => x.data as string),
     arweave.createTransaction({ data: postData, }, wallet)
@@ -93,8 +129,8 @@ export async function postPost(wallet: any, postData: string | Buffer, tags: For
   const resp = await arweave.transactions.post(tx);
   
   if (resp.status == 200) {
-    txTracker && txTracker.addPendingPostTx(tx, tags);
-    console.log(`Post submitted as tx: ${tx.id}`);
+    txTracker && await txTracker.addPendingPostTx(tx, tags);
+    console.info(`Post submitted as tx: ${tx.id}`);
     return tx.id;
   } else {
     throw new Error(`Post failed: ${resp.statusText} (${resp.status})`);

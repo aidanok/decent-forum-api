@@ -1,5 +1,6 @@
-import { CachedForumPost } from './cached-forum-post';
+import { ForumPost } from './forum-post';
 import { ForumTreeNode } from './forum-tree-node';
+import { AllTransactionInfo } from './all-transaction-info';
 
 /**
  * Node in a PostTree
@@ -29,7 +30,7 @@ export class PostTreeNode {
   id: string 
   forum: ForumTreeNode
 
-  post: CachedForumPost;
+  post: ForumPost;
   replies: Record<string, PostTreeNode>;
   isEdit: boolean;
   edits: PostTreeNode[] = [];
@@ -39,7 +40,7 @@ export class PostTreeNode {
   voters: string[] = []
   
   // TODO: store a reference to ForumTreeNode instead of path.
-  constructor(id: string, forum: ForumTreeNode, post: CachedForumPost, opts: PostTreeNodeCreateOptions = {}) {
+  constructor(id: string, forum: ForumTreeNode, post: ForumPost, opts: PostTreeNodeCreateOptions = {}) {
     this.id = id;
     this.forum = forum
     this.post = post;
@@ -65,6 +66,7 @@ export class PostTreeNode {
   isContentFiled(): boolean {
     return !!this.post.content
   }
+
   
   /**
    * Gets a specific edit of this post. 
@@ -73,24 +75,26 @@ export class PostTreeNode {
    * @param edit 
    */
   public getEdit(edit: number): PostTreeNode {
-    if (edit) {
-      return this.edits[Math.min(edit, this.edits.length-1)];
+    if (edit === 0) {
+      return this;
     }
-    return this;
+    if (edit > this.edits.length) {
+      return this.edits[this.edits.length-1];
+    }
+    return this.edits[edit-1];
   }
 
   /**
-   * Get the number of edits. We count the original post in this,
-   * so the index is compatible with getEdit();
+   * Get the number of edits. 
    */
   public editCount(): number {
     return this.edits.length;
   }
 
   /**
-   * Gets the latest edit.
+   * Get the latest edit.
    */
-  public latestEdit(): PostTreeNode {
+  public getLastestEdit() {
     return this.getEdit(this.editCount());
   }
 
@@ -103,7 +107,7 @@ export class PostTreeNode {
   }
 
   /**
-   * Get total votes for all edits of this post only. 
+   * Get total votes for all edits of this post only.
    * 
    */
   public getAggregatedVotes(): { upVotes: number, downVotes: number} {
@@ -125,8 +129,8 @@ export class PostTreeNode {
    * 
    * @param post 
    */
-  addReply(post: CachedForumPost): PostTreeNode {
-    const newNode = new PostTreeNode(post.id, this.forum, post, { parent: this });
+  addReply(post: ForumPost, opts?: PostTreeNodeCreateOptions): PostTreeNode {
+    const newNode = new PostTreeNode(post.id, this.forum, post, Object.assign({}, opts, { parent: this }));
     this.replies = Object.assign({}, this.replies, { [post.id]: newNode });
     return newNode;
   }
@@ -136,15 +140,17 @@ export class PostTreeNode {
    * 
    * @param post 
    */
-  addEdit(post: CachedForumPost): PostTreeNode {
+  addEdit(post: ForumPost, options?: PostTreeNodeCreateOptions): PostTreeNode {
     if (this.isEdit) {
       throw new Error('Edits should not reference other edits.');
     }
     if (!this.edits) {
       this.edits = [];
     }
-    const newNode = new PostTreeNode(post.id, this.forum, post, { parent: this });
+    
+    const newNode = new PostTreeNode(post.id, this.forum, post, Object.assign({}, options, { isEdit: true, parent: this }));
     this.edits.push(newNode);
+    this.edits.sort((a, b) => a.post.date.getTime() - b.post.date.getTime());
     return newNode;
   }
 

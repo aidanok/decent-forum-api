@@ -1,3 +1,4 @@
+import { ForumItemTags } from '.';
 
 
 /**
@@ -137,7 +138,11 @@ export interface ReferenceToTags {
 
 }
 
-export function getRefParent(tags: ReferenceToTags) {
+export function isRefRoot(tags: Record<string, string>): boolean {
+  return tags['refToCount'] === '0';
+}
+
+export function getRefParent(tags: Record<string, string> | ForumItemTags): string {
   const count = parseInt(tags.refToCount);
   if (!tags.refTo0) {
     throw new Error('Cannot get parent. Root Ref');
@@ -149,7 +154,7 @@ export function getRefParent(tags: ReferenceToTags) {
   return parent;
 }
 
-export function copyRefTagsAppend(source: ReferenceToTags, to: any, append: string) {
+export function copyRefTagsAppend(source: Record<string, string> | ForumItemTags, to: any, append: string) {
   const count = parseInt(source.refToCount);
   for (var i = 0; i < count; i++) {
     to[`refTo${i}`] = (source as any)[`refTo${i}`];
