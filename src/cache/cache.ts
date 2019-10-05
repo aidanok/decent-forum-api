@@ -415,7 +415,7 @@ export class ForumCache {
         tx.ownerAddress, 
         tx.tx.get('data', { decode: true, string: true })
       )
-      const newNode = new PostTreeNode(id, forumNode, forumPost);
+      const newNode = new PostTreeNode(id, forumNode, forumPost, { isPendingTx: tx.isPendingTx });
       forumNode.posts[id] = newNode;
       this.posts[id] = newNode;
       return newNode;

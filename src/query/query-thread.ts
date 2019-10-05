@@ -24,7 +24,8 @@ export async function queryThread(txId: string, cache?: ForumCache, depth: numbe
   console.info(`Querying thread ${txId} with depth: ${depth}`)
   
   // Go ahead and query the txIds for all posts and votes in this thread. 
-  
+  const hasRootInCache = cache.findPostNode(txId); 
+
   const query = and(
       equals('DFV', getAppVersion()),
       equals('refTo0', txId),
@@ -35,7 +36,10 @@ export async function queryThread(txId: string, cache?: ForumCache, depth: numbe
       )
     );
   
-  const txIds = [txId, ...await arweave.arql(query)];
+  const txIds = !hasRootInCache ? 
+    [txId, ...await arweave.arql(query)]
+    : 
+    [...await arweave.arql(query) ];
   
   await fillCache(txIds, cache);
   
