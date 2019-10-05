@@ -56,6 +56,7 @@ export async function queryForum(forum: string[], cache = new ForumCache()): Pro
   if (forum.length === 0) {
     return cache.forums;
   }
+  console.log(`Returning ${forum.join(' > ')} from cache`);
   return cache.findForumNode(forum) || new ForumTreeNode(forum); 
 
  }

@@ -86,7 +86,7 @@ export class ForumCache {
   
 
   public getCachedPostCount() {
-    return this.posts.length;
+    return Object.keys(this.posts).length;
   }
   
   public getCachedVotesCount() {
