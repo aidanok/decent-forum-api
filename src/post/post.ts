@@ -9,6 +9,7 @@ import { PostTags } from '../schema/post-tags';
 import { generateDateTags } from '../schema/date-tags';
 import { addStandardTags } from '../lib/schema-utils';
 import { ReferenceToTags, copyRefTagsAppend } from '../schema/ref-to-tags';
+import * as ArweaveUtils from 'arweave/web/lib/utils';
 
 export function buildPostTagsForReply(replyingTo: PostTreeNode, options?: Partial<PostTags>, fakeDate?: Date): ForumPostTags { 
   
@@ -101,15 +102,22 @@ export function buildPostTags(pathSegement: string[], options: PostTags, fakeDat
  * @param txTracker 
  * @param fakeDate Use a different Date instead of now(), just for testing purposes
  */
-export async function postPost(wallet: any, postData: string | Buffer, tags: ForumPostTags, txTracker?: PendingTxTracker): Promise<string> {
+export async function postPost(wallet: any, postData: string | Buffer | Uint8Array, tags: ForumPostTags, txTracker?: PendingTxTracker): Promise<string> {
   
   console.info(tags);
   console.info('^^ Posting with Tags ^^')
   console.info(postData)
   console.info('^^ Posting with Data ^^')
+  
+  let isPlainText = true; 
 
   if (!tags.path0 || parseInt(tags.segCount) < 1) {
     throw new Error('Cannot post to empty path');
+  }
+  
+  if (typeof postData === 'string') {
+    isPlainText = true;
+    postData = new Uint8Array(ArweaveUtils.stringToBuffer(postData));
   }
 
   const [ anchor, tx ] = await Promise.all([
@@ -120,6 +128,11 @@ export async function postPost(wallet: any, postData: string | Buffer, tags: For
   Object.keys(tags).forEach(key => {
     tx.addTag(key, (tags as any)[key]);
   })
+
+  // Just to be polite.
+  if (isPlainText) {
+    tx.addTag('Content-Type', 'text/plain');
+  }
 
   // assign last_tx to anchor to we can queue multiple posts.
   ;(tx as any).last_tx = anchor; 
