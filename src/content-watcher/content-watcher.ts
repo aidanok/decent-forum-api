@@ -47,14 +47,12 @@ export class ContentWatcher {
     })
   }
 
-  async checkNewBlock(txs: string[], store: Record<string, any>) {
-    
+  async checkNewBlock(txs: string[], store: Record<string, any>) {   
     const tagsArray = await batchQueryTags(txs);
     const data = await Promise.all(
       tagsArray.map((tags, idx) => this.checkTx(txs[idx], tagsArrayToObject(tags))
       )
     );
-    
   }
 
   async checkTx(txId: string, txTags: Record<string, string>) {
