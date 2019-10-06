@@ -32,7 +32,7 @@ data from the last three weeks. We also encode a numeric timestamp for future us
 Another example of encoding data is replyTo (for post threading). A naive implementation just has one tag that points to it's parent post. To query a thread 5 levels deep you then need to then do 5 recursive/sequential queries, instead if you encode it along the lines of: `replyTo0, replyTo1, ... replyToN` & `replyDepth` you can construct a single query to get the first 3 levels of a thread, or the next 5 levels of some reply at some depth, etc. 
 
 See [src/schema/ref-to-tags.ts](src/schema/ref-to-tags.ts) Which is what we use, its a general purpose purpose way
-of encoding a tree and being able to query it at any point to N depth with one ArQL query. Would also work for graphql queries. 
+of encoding a tree and being able to query it at any point to N depth with one ArQL query. Would also work for GraphQl queries. 
 
 
 At the moment the schema for posts only supports plaintext posts. Some more formats would be good.
@@ -65,9 +65,14 @@ Some single file utilities could be moved to seperate projects, or just copy pas
 
 ### Other Other
 
-- TODO: The cache could really do with a good set of unit tests 
+- TODO: The cache could really do with a good set of unit tests and integration tests 
+        with query/post apis.  
+
 - TODO: Very strong validation of incoming data should be done at the boundry 
-  of inserting data into the cache and malformed/malicious data discarded. 
+  of inserting data into the cache and malformed/malicious data discarded. We do 
+  some basic validation like checking an edit is from the owner, and verifying the
+  votes, but we should be doing more. (times matching up close enough to block time, 
+  the path and refTo tags being consistent with parent txs, etc.) 
 
 
 

@@ -34,7 +34,8 @@ import { ForumItemTags } from '.';
  * 
  * // Root post / object
  * {
- *  refTo0: '' // NONE
+ *  refTo0: undefined // NONE
+ *  refCount: 0
  *  ... 
  * } 
  * 
@@ -48,8 +49,7 @@ import { ForumItemTags } from '.';
  * // A vote on the root post, edit or not. 
  * {
  *   txType: 'V'
- *   ref0: 'txRootId' <-- thread root
- *   // wasPE?: peId  app specific, info only. 
+ *   ref0: 'txRootId' <-- thread root 
  * },
  * 
  * // A reply to the root post. 
@@ -70,8 +70,9 @@ import { ForumItemTags } from '.';
  *   id: reply3
  *   txType: 'P'
  *   ref0: 'txRootId' <-- thread root
- *   ref1: 'reply1' <-- parents parent
- *   ref2: 'reply2' <-- parent 
+ *   ref1: 'reply1' <-- 
+ *   ref2: 'reply2' <--  
+ *   ref3: 'reply3' <-- parent
  * }
  * 
  * // An edit of that deeper reply 
@@ -80,7 +81,7 @@ import { ForumItemTags } from '.';
  *   txType: 'PE'
  *   ref0: 'txRootId' <-- thread root
  *   ref1: 'reply1' <-- 
- *   ref2: 'reply2' <-- parent parent
+ *   ref2: 'reply2' <-- 
  *   ref3: 'reply3' <-- parent 
  * }
  * // A vote on that edit
@@ -88,19 +89,21 @@ import { ForumItemTags } from '.';
  *   id: vid,
  *   txType: 'V' 
  *   ref0: 'txRootId' <-- thread root
- *   ref1: 'reply1' <-- parents parent
- *   ref2: 'reply2' <-- parent 
+ *   ref1: 'reply1' <-- 
+ *   ref2: 'reply2' <--  
  *   ref3: 'reply3' <-- parent 
- *   // wasOnPe: peditId  // app spefic, informational only.
+ *  
+ *   // wasOnPe: peditId // app specific, informational only. Edits are siblings of the original post
  * }
  * 
  * // A reply to that edit 
  * { 
  *   txType: 'P' 
  *   ref0: 'txRootId' <-- thread root
- *   ref1: 'reply1' <-- parents parent
- *   ref2: 'reply2' <-- parent 
+ *   ref1: 'reply1' <-- 
+ *   ref2: 'reply2' <--  
  *   ref3: 'reply3' <-- parent 
+ * 
  *   // wasOnPe: peditId // app specific, informationl only.
  * }
  * 
