@@ -20,17 +20,14 @@ import { ForumItemTags } from '.';
  * 
  * To query a subtree, for example at depth 3 to 4+N we just query: 
  * 
- * (refTo0='rootId' AND refTo1='parent1' AND refTo2='someid')  AND ( refTocount=4+1 OR ... refToCount=4+N ) 
+ * (refTo0='rootId' AND refTo1='parent1' AND refTo2='someid') AND ( refTocount=4+0 OR ... refToCount=4+N ) 
  * 
  * The ANDs in the first part are to ensure we dont get data from a different subtree that 
- * also happen to have refTo2='someId'.  
+ * also happen to have refTo2='someId'.
  * 
- * We could get rid of the ANDs by encoding the chain as a single tag. as well as the individual refToN tags
- * so, instead of the first set of ANDs we query: 
+ * On second thought, as long as refTo2 is a tx id, it will be unique, so we can just simplify it to
  * 
- * (refChain="tx1,tx2,tx3") AND ( refToCount=4+1 OR refToCount=4+2 ... )
- * 
- * Its unlikley to be worth the extra storage, since it should be v. cheap for nodes to AND/OR operations anyway.
+ * (refTo2='someid') AND ( refTocount=4+0 OR ... refToCount=4+N ) 
  * 
  * // Root post / object
  * {
@@ -38,7 +35,6 @@ import { ForumItemTags } from '.';
  *  refCount: 0
  *  ... 
  * } 
- * 
  * 
  * // An edit of the root post. 
  * {
@@ -106,7 +102,6 @@ import { ForumItemTags } from '.';
  * 
  *   // wasOnPe: peditId // app specific, informationl only.
  * }
- * 
  * 
  * 
  */
