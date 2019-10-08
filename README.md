@@ -12,9 +12,10 @@ it from there. For one-time queries, a temporary cache instance is created just 
 
 The cache enables a few features:
 
-1. Client side prediction: if your TX is accepted it gets placed in the cache as if it was already mined.
+1. Client side prediction: if your TX is accepted it gets placed in the cache, and into the tree as 
+   if it was already mined.
 2. Reduces need to query data that we already have
-3. Serilization of data to the clients local storage to maintain across app reloads
+3. Serialization of data to the clients local storage to maintain across app reloads
 
 Out of these, 1 is pretty much 100% done, 2 is partly in use but can be improved, 3 is not done at all.
 
@@ -59,8 +60,6 @@ It can enable a couple of other neat features too, pwa/desktop notifications of 
 
 Some single file utilities could be moved to seperate projects, or just copy pasted into a source tree:
 
-[src/query/arql.ts](src/query/arql.ts) - functional composition of arql queries
-
 [src/block-watcher/block-watcher.ts](src/block-watcher/block-watcher.ts) - tails the most recent N blocks and allows subscribers to be notified when new blocks coming in, or when we miss blocks/there is a re-org. This can be used to track pending TXs, or otherwise be notified of new content on the arweave blockchain. It tries to be polite about polling and not too aggressive when backfilling missed blocks or re-orgs. 
 
 ### Other Other
@@ -73,8 +72,6 @@ Some single file utilities could be moved to seperate projects, or just copy pas
   some basic validation like checking an edit is from the owner, and verifying the
   votes, but we should be doing more. (times matching up close enough to block time, 
   the path and refTo tags being consistent with parent txs, etc.) 
-
-
 
 
 
