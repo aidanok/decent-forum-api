@@ -1,6 +1,7 @@
-import { BlockWatcher, WatchedBlock } from '../block-watcher/block-watcher';
+import { BlockWatcher } from '../block-watcher/block-watcher';
 import { batchQueryTags, tagsArrayToObject } from '../lib/permaweb';
 import { findConfig, MediaConfig } from '../media';
+import { SyncResult } from 'decent-forum-api/block-watcher/types';
 
 
 export type ContentTranslator = (txId: string, tags: Record<string, string>)=>any;
@@ -28,7 +29,8 @@ export class ContentWatcher {
     blocks.subscribe(this.onBlocksSynced)
   }
 
-  onBlocksSynced = (blocks: WatchedBlock[], missed: boolean) => {
+  onBlocksSynced = (syncResult: SyncResult) => {
+    const blocks = syncResult.list;
     for (var i = 0; i < blocks.length; i++) {
       if (!this.content[blocks[i].hash]) {
         const store: Record<string, any> = {};

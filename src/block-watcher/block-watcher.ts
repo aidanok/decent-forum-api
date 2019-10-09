@@ -1,169 +1,154 @@
-import { arweave } from '../lib/permaweb';
+import { arweave, queryTags, tagsArrayToObject } from '../lib/permaweb';
+import { BlockWatcherSubscriber, WatchedBlock, SyncResult, SubscriberOptions } from './types';
+import { syncFromHash } from './backfill';
+import { randomDelayBetween, backOff } from './utils';
 
-// Poll some random time between 2 & 4 minutes.
-const MIN_POLL_TIME = 60*1000*2;
-const MAX_POLL_TIME = 60*1000*4;
 
-// For dev, and for when we deep link to a forum, 
-// we want to give priority to other requests so have
-// a delay before we start tailing blocks.
-const STARTUP_DELAY = 60*1000*5;
-
-const randomPollTime = () => 
-  new Promise(res => setTimeout(res, Math.random() * (MAX_POLL_TIME - MIN_POLL_TIME) + MIN_POLL_TIME))
-
-// We don't want to completely hammer the node with requests when we 
-// need to backfill, so we use a (much) smaller random delay for that.
-// Not sure if a delay is really needed.
-
-const randomSyncDelay = () => 
-  new Promise(res => setTimeout(res, (Math.random() * (MAX_POLL_TIME - MIN_POLL_TIME) + MIN_POLL_TIME) / 120))
-
-export const BLOCKS_TO_SYNC = 7;
-
-// Partial typing of the raw block format from the /blocks endpoint.
-interface RawBlock { 
-  txs: string[]
-  previous_block: string
-  height: number
+export interface BlockWatcherOptions {
+  minPollTime: number 
+  maxPollTime: number 
+  blocksToSync: number
+  startupDelay: number
 }
-
-export interface WatchedBlock {
-  hash: string
-  block: RawBlock
-}
-
-export interface BlockWatcherSubscriber { 
-  (blocks: WatchedBlock[], missed: boolean): void
-}
-
-
-/**
- * Watches for new blocks to inform subscribers.
- *  
- * Will detect if we missed blocks (or if there is a re-org) and 
- * inform subscribers. 
- * 
- */ 
-
-let instanceCount = 0;
 
 export class BlockWatcher {
 
   private idGen = 0;
   private subscribers: Record<number, BlockWatcherSubscriber> = {};
   private blocks: WatchedBlock[] = [];
-
-  private instance = ++instanceCount; // debug helper
+  
+  private lastResult?: SyncResult 
+  private options: BlockWatcherOptions = {
+    minPollTime: 0.75,
+    maxPollTime: 2,
+    blocksToSync: 7,
+    startupDelay: 0.2,
+  }
 
   constructor() {
+
     this.start();
   }
 
-  public subscribe(handler: BlockWatcherSubscriber): number {
+  public subscribe(handler: BlockWatcherSubscriber, opts?: SubscriberOptions): number {
     var subs = Object.values(this.subscribers)
-    
+
     if (Object.values(this.subscribers).findIndex(x => x == handler) !== -1) {
       throw new Error('This handler is already subscribed');
     } else {
       this.subscribers[++this.idGen] = handler;
+      // Call the subscriber immediately. 
+      setTimeout(() => {
+        if (this.lastResult) {
+          handler(this.lastResult);
+        }
+      }, 0);
+
       return this.idGen;
     }
   }
 
   public unsubscribe(sub: number | BlockWatcherSubscriber) {
-    const idx: number = typeof sub === 'number' ? 
-      sub 
+    const idx: number = typeof sub === 'number' ?
+      sub
       :
       Object.values(this.subscribers).findIndex(x => x === sub)
-  
-    delete this.subscribers[idx];  
+
+    delete this.subscribers[idx];
   }
 
   private async start() {
-    await new Promise(res => setTimeout(res, STARTUP_DELAY));
+    await new Promise(res => setTimeout(res, this.options.startupDelay*1000));
     console.log('[BlockWatcher] started')
-    this.loop();
+    let errors = 0;
+    
+    while (true) {
+      try {
+        const top = await arweave.network.getInfo().then(x => x.current);
+        const result = await syncFromHash(top, this.options.blocksToSync, this.blocks);
+        console.log(`[BlockWatcher] sycnFromHash ${top.substr(0, 6)} finished, synced: ${result.synced}`);
+        
+        this.blocks = result.list;
+        this.blocks.forEach(b => {
+          console.log(`Block: ${b.hash.substr(0, 6)}\n--${b.block.txs.length} TXs: ${b.block.txs.map(x => x.substr(0,3)).join(',')}`)
+        })
+
+        await this.fillTags();
+        this.lastResult = result;
+        this.handleResult(result);
+
+        // reset error counter.
+        errors = 0;
+        
+        // wait for next poll.
+        await randomDelayBetween(this.options.minPollTime, this.options.maxPollTime);
+
+      } catch (e) {
+        console.log(e);
+        errors++;
+        console.error(`BACKOFF ${errors}`);
+        await backOff(1500, 60 * 1000 * 5, errors);
+      }
+    }
   }
 
-  private async loop() {
-    try {
-    } catch (e) {
-      console.error(e);
-      console.error(`^^ [BlockWatcher] Unexpected error ^^`);
-    }
-    await this.sync();
-    await randomPollTime();
-    this.loop();
+  private async handleResult(result: SyncResult) {
+
+    Object.values(this.subscribers).forEach(sub => {
+      // dont let subscriber exceptions stop us.
+      try {
+        sub(result);
+      }
+      catch (e) {
+        console.error(e);
+        console.error('[BlockWatcher] caught error in subscriber handler.')
+      }
+    })
   }
 
-  private async sync() {
-    // Get the current top hash to start. 
-    let hash: string | undefined = 
-      await arweave.network.getInfo().then(x => x.current);
-    
-    console.log(`[BlockWatcher - ${this.instance}] Checking if we have ${hash!.substr(0, 5)} as top`);
-    
-    let i = 0;
-    let synced = false; 
-    let missed = false; 
-
-    while (hash && (i < BLOCKS_TO_SYNC)) {
-      if (i > 0) {
-        await randomSyncDelay();
-      }
-      hash = await this.maybeUpdate(hash, i);
-      if (!hash) {
-        // Break here so i is the number of blocks synced.
-        break; 
-      }
-      i++;
-    }
-    
-
-    // If our list grew past 'full', and our last block doesnt link to the previous one, 
-    // we missed some blocks.
-
-    missed = 
-        (this.blocks.length > BLOCKS_TO_SYNC) 
-        &&  
-        this.blocks[BLOCKS_TO_SYNC-1].block.previous_block !== this.blocks[BLOCKS_TO_SYNC].hash;
-    
-    // Trim the end of our list
-    this.blocks = this.blocks.slice(0, BLOCKS_TO_SYNC);
-  
-    if (i > 0) {
-      console.info(`[BlockWatcher] Synced ${i} blocks. ${missed ? ' ! - Some blocks were missed - !' : ''}`);
-      this.blocks.forEach(x => {
-        console.log(`[BlockWatcher] ${x.hash.substr(0, 5)} (${x.block.height}) => ${x.block.previous_block.substr(0, 5)}`);
+  // Returns tags as object, or null if we couldn't 
+  // get them after 2 retries.
+  private getTagsMaybe(txId: string): Promise<Record<string, string> | null> {
+    return queryTags(txId, 1)
+      .then(tagsArrayToObject)
+      .catch(e => {
+        console.error(e);
+        console.error(`Couldnt get tags for txId ${txId}`);
+        return null;
       })
-      synced = true;
-      Object.values(this.subscribers).forEach(sub => {
-        // dont let subscriber exceptions stop us.
-        try {
-          sub(this.blocks, missed);
-        } catch (e) {
-          console.error(e);
-        }
-      });
-    }
   }
 
-  // Checks if the block at IDX in our list matches hash, if not 
-  // retrieve that block, insert in our list at IDX and return
-  // the previous_block hash.
-  // If it does match, return undefined, indicating we are properly synced 
-  // from IDX onwards in our list. 
-  private async maybeUpdate(hash: string, idx: number): Promise<string | undefined> {
-    if (hash !== (this.blocks[idx] && this.blocks[idx].hash)) {
-      let block: RawBlock = await arweave.api.get(`/block/hash/${hash}`).then(x => x.data);
-      if (!block.previous_block) {
-        throw Error('Invalid raw block data');
+  private async fillTags() {
+    // search whole list of blocks for txs that dont have their tags fill yet. 
+    // gives us array of all blocks, with a string[] array of txids that have 
+    // no tags info. 
+    const txs = this.blocks.map(b => b.block.txs.filter(txId => !b.tags[txId]))
+
+    // iterate that list and for the txs that have no tags, try 
+    // retrieve, then fill in the tags info in the block list. 
+    for (let blockIdx = 0; blockIdx < txs.length; blockIdx++) {
+      
+      const txList = txs[blockIdx];
+
+      if (txList.length) {
+        // some txs dont have tags.
+        const tags = await Promise.all(
+          txList.map(tx => this.getTagsMaybe(tx))
+        )
+        // fill them into orginal block list.
+        for (var i = 0; i < txList.length; i++) {
+          const txId = txList[i];
+          this.blocks[blockIdx].tags[txId] = tags[i];
+        }
       }
-      this.blocks.splice(idx, 0, { hash, block })
-      return block.previous_block;
     }
-    return;
   }
 
 }
+
+
+
+
+
+
+

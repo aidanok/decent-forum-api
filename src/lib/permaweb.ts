@@ -94,7 +94,7 @@ export async function queryTags(txId: string, retries: number): Promise<DecodedT
   throw new Error('Retries exhausted during batch get, giving up');
 }
 
-function decodeTag(x: any): DecodedTag {
+export function decodeTag(x: any): DecodedTag {
   if (!x || typeof x['name'] !== 'string' || typeof x['value'] !== 'string') {
     throw new Error(`Error decoding tag from object: ${x}`);
   }
