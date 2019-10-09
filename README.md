@@ -47,14 +47,9 @@ The api methods for clients to post and query data are in [src/post/](src/post/)
 
 The block-watcher class polls the networkInfo api to detect new blocks and backfill a list of block hashs and 
 set of Txs ids. Other services can subscribe and be notified of new blocks, and be notified when we think we have
-missed blocks or there has been a re-org. This is mostly unsused at the moment, though one easy use case is to invalidate the cache. If there hasnt been any new blocks, and the client is not requesting any new data, there
-is no need to make any network queries. 
+missed blocks or there has been a re-org. 
 
-It is being used for an un-used feature, ContentWatcher, which extracts archived content to potentially display in 
-the UI to start discussions around.
-
-It can enable a couple of other neat features too, pwa/desktop notifications of posts in threads you've posted in etc. 
-
+This now updates the cache with any posts in forums that you have visited.
 
 ### Other
 
