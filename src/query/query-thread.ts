@@ -1,7 +1,7 @@
 import { ForumCache, PostTreeNode, arweave } from '..';
 import { and, equals, or } from './arql';
 import { getAppVersion } from '../lib/schema-version';
-import { fillCache } from './query-utils';
+import { fillCache } from '../cache/fill-cache';
 
 /**
  * Query a single thread, from a root post TX.

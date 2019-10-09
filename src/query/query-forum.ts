@@ -1,7 +1,7 @@
 import { ForumCache, encodeForumPath, arweave, ForumTreeNode } from '..';
 import { and, equals, or, ArqlOp, ArqlEquals } from './arql';
 import { getAppVersion } from '../lib/schema-version';
-import { fillCache } from './query-utils';
+import { fillCache } from '../cache/fill-cache';
 
 /**
  * Querys threads and votes in a given forum. 

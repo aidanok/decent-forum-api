@@ -1,8 +1,8 @@
 import Transaction, { Tag } from "arweave/web/lib/transaction";
 import { arweave, ForumCache } from "..";
 import { batchQueryTx } from '../lib/permaweb';
-import { decodeTransactionTags } from '../cache/cache-utils';
-import { AllTransactionInfo } from '../cache/all-transaction-info';
+import { decodeTransactionTags } from './cache-utils';
+import { AllTransactionInfo } from './all-transaction-info';
 
 export async function fillCache(txIds: string[], cache: ForumCache) {
 
