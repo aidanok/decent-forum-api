@@ -1,5 +1,5 @@
-import { arweave } from "decent-forum-api";
 import { RawBlock } from './types';
+import { arweave } from '../lib/permaweb';
 
 /**
  * Wait a random period of time between min and max seconds. 
@@ -8,7 +8,7 @@ import { RawBlock } from './types';
  * @param maxSeconds 
  */
 export const randomDelayBetween = (minSeconds: number, maxSeconds: number) => {
-  const ms = Math.random() * (maxSeconds+minSeconds*1000) + minSeconds*1000;
+  const ms = Math.random() * ((maxSeconds + minSeconds)*1000) + minSeconds*1000;
   console.log(`Random delay of ${ms/1000} seconds`);
   return new Promise(res => setTimeout(res,ms));
 }

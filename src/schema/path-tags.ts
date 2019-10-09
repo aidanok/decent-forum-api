@@ -60,3 +60,21 @@ export function copyPathTags(source: any, target: any) {
   })
   target.segCount = source.segCount;
 }
+
+export function extractPathSegmentsFromTags(source: Record<string, string>): string[] {
+  const n = parseInt(source.segCount);
+  if (Number.isNaN(n)) {
+    console.log(source);
+    throw new Error('Not a valid tags object passed in, cant extract path segments');
+  }
+  const segments: string[] = [];
+  for (let i = 0; i < n; i++) {
+    const seg = source[`segment${i}`]
+    console.log(`segment${i} = ${seg}`);
+    if(!seg || typeof seg !== 'string') {
+      throw new Error('Malformed tags')
+    } 
+    segments.push(seg);
+  }
+  return segments;
+}

@@ -1,6 +1,6 @@
 import { arweave, queryTags, tagsArrayToObject } from '../lib/permaweb';
 import { BlockWatcherSubscriber, WatchedBlock, SyncResult, SubscriberOptions } from './types';
-import { syncFromHash } from './backfill';
+import { backfillFromHash } from './backfill';
 import { randomDelayBetween, backOff } from './utils';
 
 
@@ -19,14 +19,13 @@ export class BlockWatcher {
   
   private lastResult?: SyncResult 
   private options: BlockWatcherOptions = {
-    minPollTime: 0.75,
-    maxPollTime: 2,
+    minPollTime: 25,
+    maxPollTime: 60,
     blocksToSync: 7,
     startupDelay: 0.2,
   }
 
   constructor() {
-
     this.start();
   }
 
@@ -37,6 +36,7 @@ export class BlockWatcher {
       throw new Error('This handler is already subscribed');
     } else {
       this.subscribers[++this.idGen] = handler;
+      console.log(`[BlockWatcher] Subscriber added ${this.idGen}`)
       // Call the subscriber immediately. 
       setTimeout(() => {
         if (this.lastResult) {
@@ -65,14 +65,11 @@ export class BlockWatcher {
     while (true) {
       try {
         const top = await arweave.network.getInfo().then(x => x.current);
-        const result = await syncFromHash(top, this.options.blocksToSync, this.blocks);
+        const result = await backfillFromHash(top, this.options.blocksToSync, this.blocks);
         console.log(`[BlockWatcher] sycnFromHash ${top.substr(0, 6)} finished, synced: ${result.synced}`);
         
         this.blocks = result.list;
-        this.blocks.forEach(b => {
-          console.log(`Block: ${b.hash.substr(0, 6)}\n--${b.block.txs.length} TXs: ${b.block.txs.map(x => x.substr(0,3)).join(',')}`)
-        })
-
+       
         await this.fillTags();
         this.lastResult = result;
         this.handleResult(result);
@@ -93,7 +90,7 @@ export class BlockWatcher {
   }
 
   private async handleResult(result: SyncResult) {
-
+    console.log(`[BlockWatcher] Handling result of sync, we have ${Object.values(this.subscribers).length} subscribers`);
     Object.values(this.subscribers).forEach(sub => {
       // dont let subscriber exceptions stop us.
       try {
