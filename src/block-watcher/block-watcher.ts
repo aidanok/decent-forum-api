@@ -17,12 +17,13 @@ export class BlockWatcher {
   private subscribers: Record<number, BlockWatcherSubscriber> = {};
   private blocks: WatchedBlock[] = [];
   
-  private lastResult?: SyncResult 
+  private lastResult?: SyncResult
+  
   private options: BlockWatcherOptions = {
-    minPollTime: 25,
-    maxPollTime: 60,
-    blocksToSync: 7,
-    startupDelay: 0.2,
+    minPollTime: 45,
+    maxPollTime: 170,
+    blocksToSync: 12,
+    startupDelay: 4,
   }
 
   constructor() {

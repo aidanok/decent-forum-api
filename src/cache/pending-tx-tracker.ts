@@ -18,8 +18,6 @@ const randomPollTime = () => Math.random() * (MAX_POLL_TIME - MIN_POLL_TIME) + M
 // before we declare it failed.
 const MAX_ERRORS = 3;
 
-
-
 /**
  * Adds a tx to the cache in a pending state. 
  * 

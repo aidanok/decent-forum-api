@@ -14,7 +14,7 @@ import { fillCache } from '../cache/fill-cache';
  * @param forum The forum path, as an array of segments, an empty array will query all forums.
  * @param cache Optional cache to use, a temporary cache will be used if none provided.
  */
-export async function queryForum(forum: string[], cache = new ForumCache(), forumDepth = 4, postDepth = 1): Promise<ForumTreeNode> {
+export async function queryForum(forum: string[], cache = new ForumCache(), forumDepth = 2, postDepth = 2): Promise<ForumTreeNode> {
 
   console.log(`[QueryForum] cache has ${cache.getCachedPostCount()} posts, and ${cache.getCachedVotesCount()} votes`)
 

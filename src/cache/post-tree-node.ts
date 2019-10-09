@@ -67,6 +67,26 @@ export class PostTreeNode {
     return !!this.post.content
   }
 
+  /**
+   * Count all replies that are a descendant of this. Does not include edits.  
+   */
+  countReplies(): number {
+    var replies = 0;
+    const recurse = (n: PostTreeNode) => {
+      replies = replies + Object.keys(n.replies).length;
+      Object.values(n.replies).forEach(recurse);
+    }
+    recurse(this);
+    return replies;
+  }
+
+  getRootPost(): PostTreeNode {
+    let n: PostTreeNode = this; 
+    while (!n.isRootPost() && n.parent !== null) {
+      n = n.parent; 
+    }
+    return n;
+  }
   
   /**
    * Gets a specific edit of this post. 

@@ -2,10 +2,7 @@ import { decodeForumPath } from '../lib/forum-paths';
 import { ForumPost } from './forum-post';
 import { ForumTreeNode } from './forum-tree-node';
 import { PostTreeNode } from './post-tree-node';
-import { ForumPostTags } from '../schema';
-import { Tag } from 'arweave/web/lib/transaction';
 import { arweave } from '..';
-import { decodeTransactionTags } from './cache-utils'
 import { getRefParent, isRefRoot } from '../schema/ref-to-tags';
 import { AllTransactionInfo } from "./all-transaction-info";
 
@@ -60,7 +57,8 @@ import { AllTransactionInfo } from "./all-transaction-info";
  * so it should be useable with another frontend framework.
  * 
  */
-export class ForumCache {
+
+ export class ForumCache {
   
   /**
    * Forum tree. The root node has an empty segment and 
@@ -138,6 +136,10 @@ export class ForumCache {
   public isFullTxPresent(txId: string): boolean {
     const pn = this.findPostNode(txId);
     return !!(pn && pn.isPendingTx && pn.isContentFiled());
+  }
+
+  public findPostsFrom(address: string) {
+    return Object.values(this.posts).filter(x => x.post.from === address);
   }
 
   /**
