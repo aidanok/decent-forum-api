@@ -48,9 +48,8 @@ export function tagsArrayToObject(tags: DecodedTag[]): Record<string, string> {
 
 // export async function batchQueryTags(txIds: string[], continuations: false): Promise<DecodedTag[][]>;
 
-export async function batchQueryTags(txIds: string[]): Promise<DecodedTag[][]>  {
-  const batchSize = 6;
-  const maxRequestRetries = 4;
+export async function batchQueryTags(txIds: string[], maxRequestRetries = 3, batchSize = 3): Promise<DecodedTag[][]>  {
+ 
   const context = {
     remaining: txIds.slice(),
     results: [] as DecodedTag[][]
@@ -66,7 +65,9 @@ export async function batchQueryTags(txIds: string[]): Promise<DecodedTag[][]>  
     //if (continuations) {
     //  return context;
     //}
+    await new Promise(res => setTimeout(res, 550));
   }
+
   console.info(`[Tags Batch] Total of ${txIds.length} took ${(new Date().getTime() - tstart) / 1000} seconds`);
   return context.results;
 }

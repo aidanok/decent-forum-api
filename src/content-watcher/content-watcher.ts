@@ -1,8 +1,7 @@
 import { BlockWatcher } from '../block-watcher/block-watcher';
 import { batchQueryTags, tagsArrayToObject } from '../lib/permaweb';
 import { findConfig, MediaConfig } from '../media';
-import { SyncResult } from 'decent-forum-api/block-watcher/types';
-
+import { SyncResult } from '../block-watcher/types';
 
 export type ContentTranslator = (txId: string, tags: Record<string, string>)=>any;
 

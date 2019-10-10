@@ -20,10 +20,9 @@ export class CacheSync {
     // Very simple, we check if any of the TXs are from our app, 
     // if they are, we check if we the forum path they are
     // about is in our cache already, if so, we try and add them to 
-    // to the cache. 
-    console.log(`ON BLOCKS SYNCED`);
+    // to the cache.    
     const interesting: Record<string, Record<string, string>> = {};
-     
+    
     for (let i = 0; i < syncResult.list.length; i++) {
       const watchedBlock = syncResult.list[i];
       Object.keys(watchedBlock.tags).forEach(txId => {

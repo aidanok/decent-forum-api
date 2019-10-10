@@ -1,4 +1,4 @@
-import { arweave, queryTags, tagsArrayToObject } from '../lib/permaweb';
+import { arweave, queryTags, tagsArrayToObject, batchQueryTags } from '../lib/permaweb';
 import { BlockWatcherSubscriber, WatchedBlock, SyncResult, SubscriberOptions } from './types';
 import { backfillFromHash } from './backfill';
 import { randomDelayBetween, backOff } from './utils';
@@ -6,7 +6,7 @@ import { randomDelayBetween, backOff } from './utils';
 
 export interface BlockWatcherOptions {
   minPollTime: number 
-  maxPollTime: number 
+  maxPollTime: number
   blocksToSync: number
   startupDelay: number
 }
@@ -18,12 +18,12 @@ export class BlockWatcher {
   private blocks: WatchedBlock[] = [];
   
   private lastResult?: SyncResult
-  
+
   private options: BlockWatcherOptions = {
-    minPollTime: 45,
-    maxPollTime: 170,
-    blocksToSync: 12,
-    startupDelay: 4,
+    minPollTime: 85,
+    maxPollTime: 270,
+    blocksToSync: 9,
+    startupDelay: 120,
   }
 
   constructor() {
@@ -104,20 +104,9 @@ export class BlockWatcher {
     })
   }
 
-  // Returns tags as object, or null if we couldn't 
-  // get them after 2 retries.
-  private getTagsMaybe(txId: string): Promise<Record<string, string> | null> {
-    return queryTags(txId, 1)
-      .then(tagsArrayToObject)
-      .catch(e => {
-        console.error(e);
-        console.error(`Couldnt get tags for txId ${txId}`);
-        return null;
-      })
-  }
 
   private async fillTags() {
-    // search whole list of blocks for txs that dont have their tags fill yet. 
+    // search whole list of blocks for txs that dont have their tags filled yet. 
     // gives us array of all blocks, with a string[] array of txids that have 
     // no tags info. 
     const txs = this.blocks.map(b => b.block.txs.filter(txId => !b.tags[txId]))
@@ -127,19 +116,21 @@ export class BlockWatcher {
     for (let blockIdx = 0; blockIdx < txs.length; blockIdx++) {
       
       const txList = txs[blockIdx];
-
-      if (txList.length) {
-        // some txs dont have tags.
-        const tags = await Promise.all(
-          txList.map(tx => this.getTagsMaybe(tx))
-        )
-        // fill them into orginal block list.
-        for (var i = 0; i < txList.length; i++) {
-          const txId = txList[i];
-          this.blocks[blockIdx].tags[txId] = tags[i];
-        }
+      if (!txList.length) {
+        continue; 
       }
+
+      try { 
+        const txTags = await batchQueryTags(txList, 1);
+        for (let i = 0; i < txList.length; i++) {
+          this.blocks[blockIdx].tags[txList[i]] = tagsArrayToObject(txTags[i]);
+        }
+      } catch (e) {
+        console.warn(`Unable to retrieve tags, will try again sometime later`);
+      }
+      await randomDelayBetween(0.8, 2);
     }
+
   }
 
 }
