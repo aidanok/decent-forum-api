@@ -103,13 +103,13 @@ export async function queryForum(forum: string[], cache = new ForumCache(), foru
   // Matches a forum path exactly, using and(segment0, segment1, ...)
   const forumPathMatch = forum.length === 0 ? null :
     and(
-      ...forum.map((segment, idx) => equals(`pathSegment${idx}`, segment))
+      ...forum.map((segment, idx) => equals(`segment${idx}`, segment))
     )
 
   // Matches and sub-forums under this to a depth, using or(segCount=N, segcCount=N+1)
   const forumPathDepthLimit =
     or(
-      ...range(forum.length, forum.length + forumDepth).map(i => equals('segCount', (i + 1).toString()))
+      ...range(forum.length, forum.length + forumDepth).map(i => equals('segCount', (i).toString()))
     );
 
   // Matches item types we want to retrieve, post/edits/votes up to N depth.
