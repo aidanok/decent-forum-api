@@ -5,14 +5,18 @@ This is a typescript library that powers decent-a-forums. (https://github.com/ao
 
 ### Cache 
 
-Provides a cache for clients and maintains a tree structure of forums, sub-forms, posts, edits, replies & a record of votes. It does this lazily, so if a user directly jumps to a deep subforum somewhere, it will just load that part of the tree into the cache, and as they navigate away, it will continue adding relevant data. 
+Provides a "cache" for clients and maintains a tree structure of forums, sub-forms, posts, edits, replies & a record of votes. It does this lazily, so if a user directly jumps to a deep subforum somewhere, it will just load that part of the tree into the cache, and as they navigate away, it will continue adding relevant data. 
+
 
 When a client wants to query some data, it queries it into the cache, and then all views/callers can read 
 it from there. For one-time queries, a temporary cache instance is created just to parse the results into the tree stucture and then discarded. 
 
+This is not a general purpose cache, which woud just be hashmap of txid->data. A more descriptive name would be something like 'World', since its job is to maintain and predict the state of the World as it pertains to the user of the forum. 
+
+
 The cache enables a few features:
 
-1. Client side prediction: if your TX is accepted it gets placed in the cache, and into the tree as 
+1. [Client side prediction](https://en.wikipedia.org/wiki/Client-side_prediction). If your TX is accepted it gets placed in the cache, and into the world state as 
    if it was already mined.
 2. Reduces need to query data that we already have
 3. Serialization of data to the clients local storage to maintain across app reloads
@@ -20,6 +24,7 @@ The cache enables a few features:
 Out of these, 1 is pretty much 100% done, 2 is partly in use but can be improved, 3 is not done at all.
 
 Serialization would be useful for one thing in particular: to keep the pending TXs on app reload, currently they are lost which can be confusing for the user. It would obviously improve loading performance a lot too. 
+
 
 The code and some comments are at [src/cache/cache.ts](src/cache/cache.ts) 
 
