@@ -80,6 +80,16 @@ export class PostTreeNode {
     return replies;
   }
 
+  getLatestReplyDate(): number {
+    var d = 0; 
+    const recurse = (n: PostTreeNode) => {
+      d = Math.max(n.post.date.getTime(), d);
+      Object.values(n.replies).forEach(recurse);
+    }
+    recurse(this);
+    return d;
+  }
+
   getRootPost(): PostTreeNode {
     let n: PostTreeNode = this; 
     while (!n.isRootPost() && n.parent !== null) {
