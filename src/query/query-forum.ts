@@ -1,5 +1,5 @@
 import { ForumCache, encodeForumPath, arweave, ForumTreeNode } from '..';
-import { and, equals, or, ArqlOp, ArqlEquals } from './arql';
+import { and, equals, or } from './arql';
 import { getAppVersion } from '../lib/schema-version';
 import { fillCache } from '../cache/fill-cache';
 
@@ -8,13 +8,11 @@ import { fillCache } from '../cache/fill-cache';
  * 
  * TODO: support limiting by days, weeks, months. Will need a 2nd ARQL request in some cases.
  * 
- * TODO: support 'streaming' results, by not waiting until the entire set of batch gets
- *       are completed to return. Should be done in fillCache() anyway. 
  * 
  * @param forum The forum path, as an array of segments, an empty array will query all forums.
  * @param cache Optional cache to use, a temporary cache will be used if none provided.
  */
-export async function queryForum(forum: string[], cache = new ForumCache(), forumDepth = 2, postDepth = 2): Promise<ForumTreeNode> {
+export async function queryForum(forum: string[], cache = new ForumCache(), forumDepth = 2, postDepth = -1): Promise<ForumTreeNode> {
 
   console.log(`[QueryForum] cache has ${cache.getCachedPostCount()} posts, and ${cache.getCachedVotesCount()} votes`)
 
@@ -113,13 +111,22 @@ export async function queryForum(forum: string[], cache = new ForumCache(), foru
     );
 
   // Matches item types we want to retrieve, post/edits/votes up to N depth.
-  const itemTypesLimit =
-    or(
-      ...range(0, postDepth).map(i => and(equals('txType', 'P'), equals('refToCount', i.toString()))),
-      ...range(0, postDepth).map(i => and(equals('txType', 'PE'), equals('refToCount', (i + 1).toString()))),
-      ...range(0, postDepth).map(i => and(equals('txType', 'PV'), equals('refToCount', (i + 1).toString()))),
-    )
+  let itemTypesLimit = or(
+    equals('txType', 'P'),
+    equals('txType', 'PE'),
+    equals('txType', 'PV'),
+  );
 
+  // Make sure we only add the depth limit clause a) if we need it, b) if its within a reasonable upper bound.
+  if (postDepth > 0 && postDepth < 6) {
+    itemTypesLimit = and(
+      itemTypesLimit,
+      or(
+        ...range(0, postDepth+1).map(i => equals('refToCount', i.toString())),
+      )
+    )
+  }
+  
   // Build main query with special case for empty forum [] ( all forums queury )
   const itemsQuery = forumPathMatch ?
     and(
@@ -139,8 +146,10 @@ export async function queryForum(forum: string[], cache = new ForumCache(), foru
     itemsQuery
   );
 
+  //console.log(itemTypesLimit);
+  console.log(query);
   let results = await arweave.arql(query);
-
+  
   await fillCache(results, cache);
   
   if (forum.length === 0) {
@@ -152,3 +161,5 @@ export async function queryForum(forum: string[], cache = new ForumCache(), foru
   return cache.findForumNode(forum) || new ForumTreeNode(forum);
 
 }
+
+
