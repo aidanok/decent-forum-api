@@ -32,7 +32,7 @@ export interface DateTags {
   /** Timezone in ISO format, suitable for passing back into Date.parse() */
   TZ: string
   /* Timestamp in ms */
-  timestamp: number 
+  timestamp: string 
 }
 
 
@@ -51,7 +51,7 @@ export function generateDateTags(date: Date): DateTags {
     WW: getWeekNumber(date)[1].toString(),
     WD: date.getUTCDay().toString(),
     TZ: getISOTimezoneOffset(date).toString(),
-    timestamp: date.getTime(), // for future use.
+    timestamp: date.getTime().toString(), // for future use.
   }
   return tags;
 }
@@ -62,12 +62,7 @@ export function generateDateTags(date: Date): DateTags {
  * @param tags 
  */
 export function dateTagsToDate(tags: DateTags): Date {
-  const d = new Date(0);
-  d.setUTCDate(parseInt(tags.DD));
-  d.setUTCMonth(parseInt(tags.MM));
-  d.setUTCFullYear(parseInt(tags.YYYY));
-  d.setUTCHours(parseInt(tags.HH));
-  d.setUTCMinutes(parseInt(tags.mm));
+  const d = new Date(parseInt(tags.timestamp, 0));
   return d; 
 }
 
