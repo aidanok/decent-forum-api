@@ -135,8 +135,8 @@ import { AllTransactionInfo } from "./all-transaction-info";
 
   public isFullTxPresent(txId: string): boolean {
     const pn = this.findPostNode(txId);
-    return !!(pn && pn.isPendingTx && pn.isContentFiled());
-  }
+    return !!(pn && !pn.isPendingTx && pn.isContentFilled());
+  } 
 
   public findPostsFrom(address: string) {
     return Object.values(this.posts).filter(x => x.post.from === address);

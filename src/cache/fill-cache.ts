@@ -12,9 +12,8 @@ export async function fillCache(txIds: string[], cache: ForumCache) {
   
   const origLen = txIds.length;
   // Filter out things we dont need to query for. 
-  txIds = txIds.filter(id => 
-    !(cache.isFullTxPresent(id) || cache.isVoteCounted(id))
-  );
+  txIds = txIds.filter(id => !cache.isFullTxPresent(id));
+  txIds = txIds.filter(id => !cache.isVoteCounted(id))
 
   console.info(`[FillCache] Skipping retrieving ${origLen - txIds.length} that are in the cache`)
 

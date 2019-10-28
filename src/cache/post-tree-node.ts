@@ -63,7 +63,7 @@ export class PostTreeNode {
   /**
    * Check if the content has been loaded for this post yet.
    */
-  isContentFiled(): boolean {
+  isContentFilled(): boolean {
     return !!this.post.content
   }
 
